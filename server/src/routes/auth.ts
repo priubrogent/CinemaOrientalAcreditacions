@@ -1,7 +1,10 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 import { AuthRequest, generateToken } from '../middleware/auth.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 const router = Router();
 
@@ -99,8 +102,6 @@ router.get('/me', (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
 
     const user = db.prepare(`
@@ -140,8 +141,6 @@ router.patch('/notifications', (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
 
     const { enabled } = req.body;
