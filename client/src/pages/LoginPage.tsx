@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,11 +17,17 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
 
   return (
