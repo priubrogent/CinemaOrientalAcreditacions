@@ -64,6 +64,7 @@ router.post('/login', (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
     });
 
     res.json({
@@ -83,7 +84,7 @@ router.post('/login', (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('access_token');
+  res.clearCookie('access_token', { path: '/' });
   res.json({ message: 'Logged out successfully' });
 });
 
@@ -106,7 +107,7 @@ router.get('/me', (req: AuthRequest, res: Response) => {
     `).get(decoded.id) as Omit<User, 'password_hash'> | undefined;
 
     if (!user || !user.is_active) {
-      res.clearCookie('access_token');
+      res.clearCookie('access_token', { path: '/' });
       return res.status(401).json({ error: 'User not found or disabled' });
     }
 
@@ -122,7 +123,7 @@ router.get('/me', (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    res.clearCookie('access_token');
+    res.clearCookie('access_token', { path: '/' });
     return res.status(401).json({ error: 'Invalid token' });
   }
 });

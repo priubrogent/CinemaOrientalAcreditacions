@@ -1,4 +1,5 @@
-import { NavLink, useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import type { AccreditationType } from '../../types';
 
@@ -39,11 +40,25 @@ interface TypeSectionProps {
 }
 
 function TypeSection({ type, isExpanded, onToggle }: TypeSectionProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (!isExpanded) {
+      // Navigate to the type's main page when expanding
+      navigate(`/${type}`);
+    }
+    onToggle();
+  };
+
   return (
     <div className="mb-2">
       <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+        onClick={handleClick}
+        className={`w-full flex items-center justify-between px-4 py-2 text-left text-sm font-semibold rounded-md transition-colors ${
+          isExpanded
+            ? 'bg-gray-100 text-gray-900'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
       >
         <span>{TYPE_DISPLAY_NAMES[type]}</span>
         <svg
@@ -72,6 +87,18 @@ function TypeSection({ type, isExpanded, onToggle }: TypeSectionProps) {
 export default function Sidebar() {
   const { user, accessibleTypes } = useAuth();
   const { type: currentType } = useParams<{ type: AccreditationType }>();
+  const [expandedType, setExpandedType] = useState<AccreditationType | null>(null);
+
+  // Update expanded type when URL changes
+  useEffect(() => {
+    if (currentType && accessibleTypes.includes(currentType)) {
+      setExpandedType(currentType);
+    }
+  }, [currentType, accessibleTypes]);
+
+  const handleToggle = (type: AccreditationType) => {
+    setExpandedType(expandedType === type ? null : type);
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
@@ -86,8 +113,8 @@ export default function Sidebar() {
             <TypeSection
               key={type}
               type={type}
-              isExpanded={currentType === type}
-              onToggle={() => {}}
+              isExpanded={expandedType === type}
+              onToggle={() => handleToggle(type)}
             />
           ))}
         </div>
