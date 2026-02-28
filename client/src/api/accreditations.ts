@@ -1,10 +1,11 @@
-import type { Accreditation, Code, EmailTemplate } from '../types';
+import type { Accreditation, Code, EmailTemplate, TypeSettings } from '../types';
 
 const API_BASE = '/api';
 
 // Accreditations
-export async function fetchAccreditations(): Promise<Accreditation[]> {
-  const res = await fetch(`${API_BASE}/accreditations`);
+export async function fetchAccreditations(type?: string): Promise<Accreditation[]> {
+  const url = type ? `${API_BASE}/accreditations?type=${type}` : `${API_BASE}/accreditations`;
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch accreditations');
   return res.json();
 }
@@ -12,6 +13,7 @@ export async function fetchAccreditations(): Promise<Accreditation[]> {
 export async function assignCode(id: number): Promise<Accreditation> {
   const res = await fetch(`${API_BASE}/accreditations/${id}/assign-code`, {
     method: 'PATCH',
+    credentials: 'include',
   });
   if (!res.ok) {
     const error = await res.json();
@@ -24,6 +26,7 @@ export async function assignCode(id: number): Promise<Accreditation> {
 export async function sendEmail(id: number): Promise<Accreditation> {
   const res = await fetch(`${API_BASE}/accreditations/${id}/send-email`, {
     method: 'POST',
+    credentials: 'include',
   });
   if (!res.ok) {
     const error = await res.json();
@@ -36,6 +39,7 @@ export async function sendEmail(id: number): Promise<Accreditation> {
 export async function deleteAccreditation(id: number): Promise<void> {
   const res = await fetch(`${API_BASE}/accreditations/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!res.ok) throw new Error('Failed to delete accreditation');
 }
@@ -43,13 +47,13 @@ export async function deleteAccreditation(id: number): Promise<void> {
 // Codes
 export async function fetchCodes(type?: string): Promise<Code[]> {
   const url = type ? `${API_BASE}/codes?type=${type}` : `${API_BASE}/codes`;
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch codes');
   return res.json();
 }
 
 export async function fetchAvailableCodes(type: string): Promise<{ count: number; codes: Code[] }> {
-  const res = await fetch(`${API_BASE}/codes/available?type=${type}`);
+  const res = await fetch(`${API_BASE}/codes/available?type=${type}`, { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch available codes');
   return res.json();
 }
@@ -58,6 +62,7 @@ export async function addCode(code: string, type: string): Promise<Code> {
   const res = await fetch(`${API_BASE}/codes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ code, type }),
   });
   if (!res.ok) {
@@ -72,6 +77,7 @@ export async function addBulkCodes(codes: string[], type: string): Promise<{ ins
   const res = await fetch(`${API_BASE}/codes/bulk`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ codes, type }),
   });
   if (!res.ok) throw new Error('Failed to add codes');
@@ -81,6 +87,7 @@ export async function addBulkCodes(codes: string[], type: string): Promise<{ ins
 export async function deleteCode(id: number): Promise<void> {
   const res = await fetch(`${API_BASE}/codes/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!res.ok) {
     const error = await res.json();
@@ -91,13 +98,13 @@ export async function deleteCode(id: number): Promise<void> {
 // Templates
 export async function fetchTemplates(type?: string): Promise<EmailTemplate[]> {
   const url = type ? `${API_BASE}/templates?type=${type}` : `${API_BASE}/templates`;
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch templates');
   return res.json();
 }
 
 export async function fetchTemplate(id: number): Promise<EmailTemplate> {
-  const res = await fetch(`${API_BASE}/templates/${id}`);
+  const res = await fetch(`${API_BASE}/templates/${id}`, { credentials: 'include' });
   if (!res.ok) throw new Error('Failed to fetch template');
   return res.json();
 }
@@ -106,6 +113,7 @@ export async function updateTemplate(id: number, data: Partial<EmailTemplate>): 
   const res = await fetch(`${API_BASE}/templates/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to update template');
@@ -117,9 +125,28 @@ export async function previewTemplate(id: number, data?: Record<string, string>)
   const res = await fetch(`${API_BASE}/templates/${id}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data || {}),
   });
   if (!res.ok) throw new Error('Failed to preview template');
+  return res.json();
+}
+
+// Settings
+export async function fetchTypeSettings(type: string): Promise<TypeSettings> {
+  const res = await fetch(`${API_BASE}/settings/${type}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to fetch settings');
+  return res.json();
+}
+
+export async function updateTypeSettings(type: string, data: Partial<TypeSettings>): Promise<TypeSettings> {
+  const res = await fetch(`${API_BASE}/settings/${type}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update settings');
   return res.json();
 }
 
@@ -133,6 +160,7 @@ export async function createTestAccreditation(data: {
   const res = await fetch(`${API_BASE}/webhook/test`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   if (!res.ok) {

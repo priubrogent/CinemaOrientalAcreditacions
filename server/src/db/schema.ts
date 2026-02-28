@@ -1,4 +1,5 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
 
@@ -46,30 +47,69 @@ db.exec(`
     is_active INTEGER DEFAULT 1
   );
 
-  CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_admin INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS user_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    UNIQUE(user_id, type)
+  );
+
+  CREATE TABLE IF NOT EXISTS type_settings (
+    type TEXT PRIMARY KEY,
     auto_assign_codes INTEGER DEFAULT 0,
-    auto_send_emails INTEGER DEFAULT 0
+    auto_send_emails INTEGER DEFAULT 0,
+    display_name TEXT NOT NULL
   );
 `);
 
-// Insert default settings if none exists
-const settingsCount = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
-if (settingsCount.count === 0) {
-  db.prepare('INSERT INTO settings (id, auto_assign_codes, auto_send_emails) VALUES (1, 0, 0)').run();
+// Drop old settings table if exists (migration)
+try {
+  db.exec('DROP TABLE IF EXISTS settings');
+} catch (e) {
+  // ignore if doesn't exist
 }
 
-// Insert default email template if none exists
-const templateCount = db.prepare('SELECT COUNT(*) as count FROM email_templates WHERE type = ?').get('premsa') as { count: number };
-if (templateCount.count === 0) {
-  db.prepare(`
-    INSERT INTO email_templates (name, type, subject, body, is_active)
-    VALUES (?, ?, ?, ?, 1)
-  `).run(
-    'Default Premsa Template',
-    'premsa',
-    'La teva acreditació de Premsa - NITS Festival',
-    `<!DOCTYPE html>
+// Insert default type settings if none exist
+const typeSettingsCount = db.prepare('SELECT COUNT(*) as count FROM type_settings').get() as { count: number };
+if (typeSettingsCount.count === 0) {
+  const insertTypeSetting = db.prepare('INSERT INTO type_settings (type, auto_assign_codes, auto_send_emails, display_name) VALUES (?, 0, 0, ?)');
+  insertTypeSetting.run('premsa', 'Premsa');
+  insertTypeSetting.run('professional', 'Professional');
+  insertTypeSetting.run('nitoman', 'Nitoman');
+}
+
+// Insert default admin user if no users exist
+const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+if (userCount.count === 0) {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const hash = bcrypt.hashSync(adminPassword, 10);
+
+  const result = db.prepare(`
+    INSERT INTO users (username, email, password_hash, is_admin)
+    VALUES ('admin', 'admin@asff.cat', ?, 1)
+  `).run(hash);
+
+  const adminId = result.lastInsertRowid;
+
+  // Give admin access to all types
+  const insertPermission = db.prepare('INSERT INTO user_permissions (user_id, type) VALUES (?, ?)');
+  insertPermission.run(adminId, 'premsa');
+  insertPermission.run(adminId, 'professional');
+  insertPermission.run(adminId, 'nitoman');
+}
+
+// Insert default email templates if none exist
+const defaultEmailBody = (typeName: string) => `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -85,13 +125,13 @@ if (templateCount.count === 0) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>NITS Festival</h1>
-      <h2>Acreditació de Premsa</h2>
+      <h1>Asian Summer Film Festival</h1>
+      <h2>Acreditació ${typeName}</h2>
     </div>
 
     <p>Hola {{name}},</p>
 
-    <p>Gràcies per registrar-te com a premsa al NITS Festival. Aquí tens el teu codi d'acreditació:</p>
+    <p>Gràcies per la teva compra. Aquí tens el teu codi d'acreditació ${typeName}:</p>
 
     <div class="code-box">
       <span class="code">{{code}}</span>
@@ -101,15 +141,29 @@ if (templateCount.count === 0) {
 
     <p>Si tens cap pregunta, no dubtis en contactar-nos.</p>
 
-    <p>Salutacions,<br>L'equip de NITS Festival</p>
+    <p>Salutacions,<br>L'equip d'Asian Summer Film Festival</p>
 
     <div class="footer">
       <p>Número de comanda: {{order_id}}</p>
     </div>
   </div>
 </body>
-</html>`
-  );
+</html>`;
+
+const templateTypes = [
+  { type: 'premsa', name: 'Default Premsa Template', subject: 'La teva acreditació de Premsa - ASFF' },
+  { type: 'professional', name: 'Default Professional Template', subject: 'La teva acreditació Professional - ASFF' },
+  { type: 'nitoman', name: 'Default Nitoman Template', subject: 'La teva acreditació Nitoman - ASFF' },
+];
+
+for (const t of templateTypes) {
+  const count = db.prepare('SELECT COUNT(*) as count FROM email_templates WHERE type = ?').get(t.type) as { count: number };
+  if (count.count === 0) {
+    db.prepare(`
+      INSERT INTO email_templates (name, type, subject, body, is_active)
+      VALUES (?, ?, ?, ?, 1)
+    `).run(t.name, t.type, t.subject, defaultEmailBody(t.name.replace('Default ', '').replace(' Template', '')));
+  }
 }
 
 export default db;

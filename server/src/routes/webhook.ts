@@ -6,20 +6,43 @@ import { sendAccreditationEmail } from '../services/emailService.js';
 import { appendToGoogleSheets, updateRowInGoogleSheets } from '../services/sheetsService.js';
 import type { WooCommerceWebhookPayload } from '../types/index.js';
 
-interface Settings {
+interface TypeSettings {
+  type: string;
   auto_assign_codes: number;
   auto_send_emails: number;
 }
 
-function getSettings(): Settings {
-  return db.prepare('SELECT auto_assign_codes, auto_send_emails FROM settings WHERE id = 1').get() as Settings || {
+function getTypeSettings(type: string): TypeSettings {
+  return db.prepare('SELECT type, auto_assign_codes, auto_send_emails FROM type_settings WHERE type = ?').get(type) as TypeSettings || {
+    type,
     auto_assign_codes: 0,
     auto_send_emails: 0
   };
 }
 
+// Detect accreditation type from WooCommerce line items
+function detectAccreditationType(lineItems: Array<{ name: string; sku?: string }>): string | null {
+  if (!lineItems || lineItems.length === 0) return null;
+
+  for (const item of lineItems) {
+    const searchText = `${item.name || ''} ${item.sku || ''}`.toLowerCase();
+
+    if (searchText.includes('premsa') || searchText.includes('press')) {
+      return 'premsa';
+    }
+    if (searchText.includes('professional')) {
+      return 'professional';
+    }
+    if (searchText.includes('nitoman') || searchText.includes('nitòman')) {
+      return 'nitoman';
+    }
+  }
+
+  return null; // No accreditation product found
+}
+
 async function autoProcessAccreditation(accreditationId: number, type: string) {
-  const settings = getSettings();
+  const settings = getTypeSettings(type);
 
   if (!settings.auto_assign_codes) {
     return;
@@ -69,8 +92,7 @@ router.post('/woocommerce', (req, res) => {
   const signature = req.headers['x-wc-webhook-signature'] as string;
   const secret = process.env.WEBHOOK_SECRET;
 
-  // TEMPORARILY DISABLED for testing
-  // TODO: Re-enable signature verification
+  // TODO: Re-enable signature verification when ready
   // if (secret && signature) {
   //   const payload = JSON.stringify(req.body);
   //   if (!verifyWebhookSignature(payload, signature, secret)) {
@@ -78,22 +100,20 @@ router.post('/woocommerce', (req, res) => {
   //     return res.status(401).json({ error: 'Invalid signature' });
   //   }
   // }
+
   console.log('Webhook received from:', req.headers['user-agent']);
 
   try {
     const data = req.body as WooCommerceWebhookPayload;
 
-    // TEMPORARY: Accept all orders for testing
-    // TODO: Re-enable filtering later
-    // const premsaItem = data.line_items?.find(item =>
-    //   item.name.toLowerCase().includes('premsa') ||
-    //   item.sku?.toLowerCase().includes('premsa')
-    // );
-    // if (!premsaItem) {
-    //   return res.json({ message: 'Order does not contain Premsa accreditation' });
-    // }
+    // Detect accreditation type from products
+    const detectedType = detectAccreditationType(data.line_items);
+    if (!detectedType) {
+      console.log('Order does not contain accreditation product:', data.id);
+      return res.json({ message: 'Order does not contain accreditation product' });
+    }
 
-    console.log('Webhook received order:', data.id, 'Items:', data.line_items?.map(i => i.name));
+    console.log('Webhook received order:', data.id, 'Type:', detectedType, 'Items:', data.line_items?.map(i => i.name));
 
     // Check if already exists
     const existing = accreditations.getByOrderId(String(data.id));
@@ -101,16 +121,16 @@ router.post('/woocommerce', (req, res) => {
       return res.json({ message: 'Order already processed', accreditation: existing });
     }
 
-    // Create accreditation
+    // Create accreditation with detected type
     const customerName = `${data.billing.first_name} ${data.billing.last_name}`.trim();
     const accreditation = accreditations.create({
       order_id: String(data.id),
       customer_name: customerName,
       customer_email: data.billing.email,
-      type: 'premsa'
+      type: detectedType
     });
 
-    console.log(`New Premsa accreditation created: ${accreditation.order_id} for ${accreditation.customer_email}`);
+    console.log(`New ${detectedType} accreditation created: ${accreditation.order_id} for ${accreditation.customer_email}`);
 
     // Sync to Google Sheets
     appendToGoogleSheets(accreditation).catch(err => {

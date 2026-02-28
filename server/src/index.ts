@@ -1,8 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { requireAuth, requireAdmin } from './middleware/auth.js';
+import authRouter from './routes/auth.js';
+import usersRouter from './routes/users.js';
 import webhookRouter from './routes/webhook.js';
 import accreditationsRouter from './routes/accreditations.js';
 import codesRouter from './routes/codes.js';
@@ -20,16 +24,36 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:5173',
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json());
 
-// API Routes
+// Public routes
+app.use('/api/auth', authRouter);
+
+// Webhook uses its own authentication (signature verification)
 app.use('/api/webhook', webhookRouter);
-app.use('/api/accreditations', accreditationsRouter);
-app.use('/api/codes', codesRouter);
-app.use('/api/templates', templatesRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/sheets', sheetsRouter);
+
+// Protected routes (require authentication)
+app.use('/api/accreditations', requireAuth, accreditationsRouter);
+app.use('/api/codes', requireAuth, codesRouter);
+app.use('/api/templates', requireAuth, templatesRouter);
+app.use('/api/settings', requireAuth, settingsRouter);
+app.use('/api/sheets', requireAuth, sheetsRouter);
+
+// Admin-only routes
+app.use('/api/users', requireAuth, requireAdmin, usersRouter);
+
+// Types endpoint - get accessible types for current user
+app.get('/api/types', requireAuth, (req: any, res) => {
+  const types = req.user.is_admin
+    ? ['premsa', 'professional', 'nitoman']
+    : req.user.types;
+  res.json(types);
+});
 
 // Health check
 app.get('/api/health', (req, res) => {

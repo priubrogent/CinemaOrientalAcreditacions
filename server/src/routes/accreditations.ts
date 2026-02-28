@@ -1,14 +1,34 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { accreditations, codes, templates } from '../db/index.js';
 import { sendAccreditationEmail } from '../services/emailService.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
-// Get all accreditations
-router.get('/', (req, res) => {
+// Helper to get accessible types
+function getAccessibleTypes(user: AuthRequest['user']): string[] {
+  if (!user) return [];
+  return user.is_admin ? ['premsa', 'professional', 'nitoman'] : user.types;
+}
+
+// Get all accreditations (filtered by type)
+router.get('/', (req: AuthRequest, res: Response) => {
   try {
+    const type = req.query.type as string | undefined;
+    const accessibleTypes = getAccessibleTypes(req.user);
+
+    // If specific type requested, validate access
+    if (type && !accessibleTypes.includes(type)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
+
     const all = accreditations.getAll();
-    res.json(all);
+
+    // Filter by accessible types
+    const typesToShow = type ? [type] : accessibleTypes;
+    const filtered = all.filter(a => typesToShow.includes(a.type));
+
+    res.json(filtered);
   } catch (error) {
     console.error('Error fetching accreditations:', error);
     res.status(500).json({ error: 'Failed to fetch accreditations' });
@@ -16,12 +36,19 @@ router.get('/', (req, res) => {
 });
 
 // Get single accreditation
-router.get('/:id', (req, res) => {
+router.get('/:id', (req: AuthRequest, res: Response) => {
   try {
     const accreditation = accreditations.getById(parseInt(req.params.id));
     if (!accreditation) {
       return res.status(404).json({ error: 'Accreditation not found' });
     }
+
+    // Check type access
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
+    }
+
     res.json(accreditation);
   } catch (error) {
     console.error('Error fetching accreditation:', error);
@@ -30,13 +57,19 @@ router.get('/:id', (req, res) => {
 });
 
 // Assign code to accreditation
-router.patch('/:id/assign-code', (req, res) => {
+router.patch('/:id/assign-code', (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const accreditation = accreditations.getById(id);
 
     if (!accreditation) {
       return res.status(404).json({ error: 'Accreditation not found' });
+    }
+
+    // Check type access
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
     }
 
     if (accreditation.code_id) {
@@ -58,13 +91,19 @@ router.patch('/:id/assign-code', (req, res) => {
 });
 
 // Send email for accreditation
-router.post('/:id/send-email', async (req, res) => {
+router.post('/:id/send-email', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const accreditation = accreditations.getById(id);
 
     if (!accreditation) {
       return res.status(404).json({ error: 'Accreditation not found' });
+    }
+
+    // Check type access
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
     }
 
     if (!accreditation.code) {
@@ -92,9 +131,22 @@ router.post('/:id/send-email', async (req, res) => {
 });
 
 // Delete accreditation
-router.delete('/:id', (req, res) => {
+router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
-    const deleted = accreditations.delete(parseInt(req.params.id));
+    const id = parseInt(req.params.id);
+    const accreditation = accreditations.getById(id);
+
+    if (!accreditation) {
+      return res.status(404).json({ error: 'Accreditation not found' });
+    }
+
+    // Check type access
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
+    }
+
+    const deleted = accreditations.delete(id);
     if (!deleted) {
       return res.status(404).json({ error: 'Accreditation not found' });
     }

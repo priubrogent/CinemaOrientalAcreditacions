@@ -1,14 +1,37 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { codes } from '../db/index.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
-// Get all codes
-router.get('/', (req, res) => {
+// Helper to get accessible types
+function getAccessibleTypes(user: AuthRequest['user']): string[] {
+  if (!user) return [];
+  return user.is_admin ? ['premsa', 'professional', 'nitoman'] : user.types;
+}
+
+// Get all codes (filtered by type)
+router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const type = req.query.type as string | undefined;
-    const all = codes.getAll(type);
-    res.json(all);
+    const accessibleTypes = getAccessibleTypes(req.user);
+
+    // If specific type requested, validate access
+    if (type && !accessibleTypes.includes(type)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
+
+    if (type) {
+      const all = codes.getAll(type);
+      res.json(all);
+    } else {
+      // Return codes for all accessible types
+      const allCodes: any[] = [];
+      for (const t of accessibleTypes) {
+        allCodes.push(...codes.getAll(t));
+      }
+      res.json(allCodes);
+    }
   } catch (error) {
     console.error('Error fetching codes:', error);
     res.status(500).json({ error: 'Failed to fetch codes' });
@@ -16,9 +39,15 @@ router.get('/', (req, res) => {
 });
 
 // Get available codes count
-router.get('/available', (req, res) => {
+router.get('/available', (req: AuthRequest, res: Response) => {
   try {
     const type = (req.query.type as string) || 'premsa';
+    const accessibleTypes = getAccessibleTypes(req.user);
+
+    if (!accessibleTypes.includes(type)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
+
     const available = codes.getAvailable(type);
     res.json({ type, count: available.length, codes: available });
   } catch (error) {
@@ -28,15 +57,21 @@ router.get('/available', (req, res) => {
 });
 
 // Add single code
-router.post('/', (req, res) => {
+router.post('/', (req: AuthRequest, res: Response) => {
   try {
     const { code, type } = req.body;
+    const codeType = type || 'premsa';
+    const accessibleTypes = getAccessibleTypes(req.user);
+
+    if (!accessibleTypes.includes(codeType)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
 
     if (!code) {
       return res.status(400).json({ error: 'Code is required' });
     }
 
-    const created = codes.create(code.trim(), type || 'premsa');
+    const created = codes.create(code.trim(), codeType);
     res.status(201).json({ message: 'Code created', code: created });
   } catch (error: any) {
     if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -48,15 +83,21 @@ router.post('/', (req, res) => {
 });
 
 // Add bulk codes
-router.post('/bulk', (req, res) => {
+router.post('/bulk', (req: AuthRequest, res: Response) => {
   try {
     const { codes: codeList, type } = req.body;
+    const codeType = type || 'premsa';
+    const accessibleTypes = getAccessibleTypes(req.user);
+
+    if (!accessibleTypes.includes(codeType)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
 
     if (!codeList || !Array.isArray(codeList)) {
       return res.status(400).json({ error: 'codes array is required' });
     }
 
-    const inserted = codes.createBulk(codeList, type || 'premsa');
+    const inserted = codes.createBulk(codeList, codeType);
     const total = codeList.filter(c => c.trim()).length;
 
     res.status(201).json({
@@ -72,11 +113,25 @@ router.post('/bulk', (req, res) => {
 });
 
 // Delete code (only if unused)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
-    const deleted = codes.delete(parseInt(req.params.id));
+    // Get the code first to check type access
+    const codeId = parseInt(req.params.id);
+    const allCodes = codes.getAll();
+    const codeToDelete = allCodes.find(c => c.id === codeId);
+
+    if (!codeToDelete) {
+      return res.status(404).json({ error: 'Code not found' });
+    }
+
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(codeToDelete.type)) {
+      return res.status(403).json({ error: 'No access to this type' });
+    }
+
+    const deleted = codes.delete(codeId);
     if (!deleted) {
-      return res.status(400).json({ error: 'Code not found or already in use' });
+      return res.status(400).json({ error: 'Code is in use and cannot be deleted' });
     }
     res.json({ message: 'Code deleted' });
   } catch (error) {

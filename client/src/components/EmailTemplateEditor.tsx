@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchTemplates, updateTemplate, previewTemplate } from '../api/accreditations';
-import type { EmailTemplate } from '../types';
+import type { EmailTemplate, AccreditationType } from '../types';
+
+const TYPE_DISPLAY_NAMES: Record<AccreditationType, string> = {
+  premsa: 'Premsa',
+  professional: 'Professional',
+  nitoman: 'Nitoman',
+};
 
 export default function EmailTemplateEditor() {
+  const { type } = useParams<{ type: AccreditationType }>();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -12,15 +20,16 @@ export default function EmailTemplateEditor() {
   const queryClient = useQueryClient();
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['templates', 'premsa'],
-    queryFn: () => fetchTemplates('premsa'),
+    queryKey: ['templates', type],
+    queryFn: () => fetchTemplates(type),
+    enabled: !!type,
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: { id: number; subject: string; body: string }) =>
       updateTemplate(data.id, { subject: data.subject, body: data.body }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      queryClient.invalidateQueries({ queryKey: ['templates', type] });
       alert('Plantilla guardada');
     },
     onError: (err: Error) => alert(err.message),
@@ -44,6 +53,12 @@ export default function EmailTemplateEditor() {
     }
   }, [templates, selectedId]);
 
+  // Reset when type changes
+  useEffect(() => {
+    setSelectedId(null);
+    setShowPreview(false);
+  }, [type]);
+
   const handleSelectTemplate = (template: EmailTemplate) => {
     setSelectedId(template.id);
     setSubject(template.subject);
@@ -58,11 +73,12 @@ export default function EmailTemplateEditor() {
 
   const handlePreview = () => {
     if (!selectedId) return;
-    // First save, then preview
     updateMutation.mutate({ id: selectedId, subject, body }, {
       onSuccess: () => previewMutation.mutate(selectedId),
     });
   };
+
+  if (!type) return null;
 
   if (isLoading) {
     return <div className="text-gray-500">Carregant plantilles...</div>;
@@ -70,7 +86,9 @@ export default function EmailTemplateEditor() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Plantilla d'Email</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        Plantilla d'Email - {TYPE_DISPLAY_NAMES[type]}
+      </h2>
 
       {templates.length > 1 && (
         <div className="mb-4">

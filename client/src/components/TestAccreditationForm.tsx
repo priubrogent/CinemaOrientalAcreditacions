@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createTestAccreditation } from '../api/accreditations';
+import type { AccreditationType } from '../types';
 
-export default function TestAccreditationForm() {
+interface Props {
+  type: AccreditationType;
+}
+
+export default function TestAccreditationForm({ type }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [name, setName] = useState('');
@@ -12,7 +17,7 @@ export default function TestAccreditationForm() {
   const mutation = useMutation({
     mutationFn: createTestAccreditation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
       setOrderId('');
       setName('');
       setEmail('');
@@ -27,7 +32,7 @@ export default function TestAccreditationForm() {
       order_id: orderId,
       customer_name: name,
       customer_email: email,
-      type: 'premsa',
+      type,
     });
   };
 

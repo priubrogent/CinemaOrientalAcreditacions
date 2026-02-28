@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Accreditation } from '../types';
+import type { Accreditation, AccreditationType } from '../types';
 import { assignCode, sendEmail, deleteAccreditation } from '../api/accreditations';
 import { useState } from 'react';
 
@@ -9,6 +9,7 @@ interface Props {
   accreditations: Accreditation[];
   isLoading: boolean;
   viewMode: ViewMode;
+  type?: AccreditationType;
 }
 
 function StatusBadge({ status }: { status: Accreditation['status'] }) {
@@ -31,15 +32,15 @@ function StatusBadge({ status }: { status: Accreditation['status'] }) {
   );
 }
 
-function AccreditationRow({ accreditation }: { accreditation: Accreditation }) {
+function AccreditationRow({ accreditation, type }: { accreditation: Accreditation; type?: AccreditationType }) {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const assignCodeMutation = useMutation({
     mutationFn: () => assignCode(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
-      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
       setError(null);
     },
     onError: (err: Error) => setError(err.message),
@@ -48,7 +49,7 @@ function AccreditationRow({ accreditation }: { accreditation: Accreditation }) {
   const sendEmailMutation = useMutation({
     mutationFn: () => sendEmail(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
       setError(null);
     },
     onError: (err: Error) => setError(err.message),
@@ -57,8 +58,8 @@ function AccreditationRow({ accreditation }: { accreditation: Accreditation }) {
   const deleteMutation = useMutation({
     mutationFn: () => deleteAccreditation(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
-      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -129,15 +130,15 @@ function AccreditationRow({ accreditation }: { accreditation: Accreditation }) {
   );
 }
 
-function AccreditationCard({ accreditation }: { accreditation: Accreditation }) {
+function AccreditationCard({ accreditation, type }: { accreditation: Accreditation; type?: AccreditationType }) {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const assignCodeMutation = useMutation({
     mutationFn: () => assignCode(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
-      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
       setError(null);
     },
     onError: (err: Error) => setError(err.message),
@@ -146,7 +147,7 @@ function AccreditationCard({ accreditation }: { accreditation: Accreditation }) 
   const sendEmailMutation = useMutation({
     mutationFn: () => sendEmail(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
       setError(null);
     },
     onError: (err: Error) => setError(err.message),
@@ -155,8 +156,8 @@ function AccreditationCard({ accreditation }: { accreditation: Accreditation }) 
   const deleteMutation = useMutation({
     mutationFn: () => deleteAccreditation(accreditation.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
-      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -230,7 +231,7 @@ function AccreditationCard({ accreditation }: { accreditation: Accreditation }) 
   );
 }
 
-export default function AccreditationList({ accreditations, isLoading, viewMode }: Props) {
+export default function AccreditationList({ accreditations, isLoading, viewMode, type }: Props) {
   if (isLoading) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -264,7 +265,7 @@ export default function AccreditationList({ accreditations, isLoading, viewMode 
           </thead>
           <tbody>
             {accreditations.map((accreditation) => (
-              <AccreditationRow key={accreditation.id} accreditation={accreditation} />
+              <AccreditationRow key={accreditation.id} accreditation={accreditation} type={type} />
             ))}
           </tbody>
         </table>
@@ -275,7 +276,7 @@ export default function AccreditationList({ accreditations, isLoading, viewMode 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {accreditations.map((accreditation) => (
-        <AccreditationCard key={accreditation.id} accreditation={accreditation} />
+        <AccreditationCard key={accreditation.id} accreditation={accreditation} type={type} />
       ))}
     </div>
   );

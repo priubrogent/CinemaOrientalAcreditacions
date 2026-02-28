@@ -29,3 +29,20 @@ export interface EmailTemplate {
 }
 
 export type AccreditationType = 'premsa' | 'professional' | 'nitoman';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  is_admin: boolean;
+  is_active: boolean;
+  types: AccreditationType[];
+  created_at?: string;
+}
+
+export interface TypeSettings {
+  type: AccreditationType;
+  auto_assign_codes: boolean;
+  auto_send_emails: boolean;
+  display_name: string;
+}

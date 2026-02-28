@@ -1,22 +1,31 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCodes, addBulkCodes, deleteCode } from '../api/accreditations';
-import type { Code } from '../types';
+import type { Code, AccreditationType } from '../types';
+
+const TYPE_DISPLAY_NAMES: Record<AccreditationType, string> = {
+  premsa: 'Premsa',
+  professional: 'Professional',
+  nitoman: 'Nitoman',
+};
 
 export default function CodePoolManager() {
+  const { type } = useParams<{ type: AccreditationType }>();
   const [bulkInput, setBulkInput] = useState('');
   const [showAll, setShowAll] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: codes = [], isLoading } = useQuery({
-    queryKey: ['codes', 'premsa'],
-    queryFn: () => fetchCodes('premsa'),
+    queryKey: ['codes', type],
+    queryFn: () => fetchCodes(type),
+    enabled: !!type,
   });
 
   const addBulkMutation = useMutation({
-    mutationFn: (codeList: string[]) => addBulkCodes(codeList, 'premsa'),
+    mutationFn: (codeList: string[]) => addBulkCodes(codeList, type!),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
       setBulkInput('');
       alert(`Afegits ${result.inserted} codis (${result.duplicates} duplicats ignorats)`);
     },
@@ -25,7 +34,7 @@ export default function CodePoolManager() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteCode,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['codes'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['codes', type] }),
     onError: (err: Error) => alert(err.message),
   });
 
@@ -42,9 +51,13 @@ export default function CodePoolManager() {
   const usedCodes = codes.filter(c => c.is_used);
   const displayCodes = showAll ? codes : availableCodes.slice(0, 10);
 
+  if (!type) return null;
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Codis de Premsa</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        Codis {TYPE_DISPLAY_NAMES[type]}
+      </h2>
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gray-50 rounded p-4 text-center">
@@ -68,7 +81,7 @@ export default function CodePoolManager() {
         <textarea
           value={bulkInput}
           onChange={(e) => setBulkInput(e.target.value)}
-          placeholder="PREMSA-001&#10;PREMSA-002&#10;PREMSA-003"
+          placeholder={`${type.toUpperCase()}-001\n${type.toUpperCase()}-002\n${type.toUpperCase()}-003`}
           className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <button
