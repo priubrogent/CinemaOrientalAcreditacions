@@ -3,9 +3,12 @@ import type { Accreditation } from '../types';
 import { assignCode, sendEmail, deleteAccreditation } from '../api/accreditations';
 import { useState } from 'react';
 
+type ViewMode = 'cards' | 'list';
+
 interface Props {
   accreditations: Accreditation[];
   isLoading: boolean;
+  viewMode: ViewMode;
 }
 
 function StatusBadge({ status }: { status: Accreditation['status'] }) {
@@ -25,6 +28,104 @@ function StatusBadge({ status }: { status: Accreditation['status'] }) {
     <span className={`px-2 py-1 text-xs font-medium rounded ${styles[status]}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function AccreditationRow({ accreditation }: { accreditation: Accreditation }) {
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const assignCodeMutation = useMutation({
+    mutationFn: () => assignCode(accreditation.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      queryClient.invalidateQueries({ queryKey: ['codes'] });
+      setError(null);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: () => sendEmail(accreditation.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      setError(null);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteAccreditation(accreditation.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations'] });
+      queryClient.invalidateQueries({ queryKey: ['codes'] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const isLoading = assignCodeMutation.isPending || sendEmailMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <>
+      <tr className="border-b border-gray-100 hover:bg-gray-50">
+        <td className="py-3 px-4">
+          <div className="font-medium text-gray-900">{accreditation.customer_name}</div>
+          <div className="text-sm text-gray-500">{accreditation.customer_email}</div>
+        </td>
+        <td className="py-3 px-4 text-sm text-gray-600">#{accreditation.order_id}</td>
+        <td className="py-3 px-4">
+          {accreditation.code ? (
+            <code className="bg-gray-100 px-2 py-0.5 rounded text-sm">{accreditation.code}</code>
+          ) : (
+            <span className="text-gray-400 text-sm">-</span>
+          )}
+        </td>
+        <td className="py-3 px-4">
+          <StatusBadge status={accreditation.status} />
+        </td>
+        <td className="py-3 px-4 text-sm text-gray-600">
+          {new Date(accreditation.created_at).toLocaleDateString('ca-ES')}
+        </td>
+        <td className="py-3 px-4">
+          <div className="flex gap-2">
+            {accreditation.status === 'pending' && (
+              <button
+                onClick={() => assignCodeMutation.mutate()}
+                disabled={isLoading}
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {assignCodeMutation.isPending ? '...' : 'Assignar'}
+              </button>
+            )}
+            {accreditation.status === 'code_assigned' && (
+              <button
+                onClick={() => sendEmailMutation.mutate()}
+                disabled={isLoading}
+                className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {sendEmailMutation.isPending ? '...' : 'Enviar'}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (confirm('Segur que vols eliminar aquesta acreditació?')) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={isLoading}
+              className="px-2 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-50"
+            >
+              Eliminar
+            </button>
+          </div>
+        </td>
+      </tr>
+      {error && (
+        <tr>
+          <td colSpan={6} className="px-4 py-2 bg-red-50 text-sm text-red-700">{error}</td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -129,7 +230,7 @@ function AccreditationCard({ accreditation }: { accreditation: Accreditation }) 
   );
 }
 
-export default function AccreditationList({ accreditations, isLoading }: Props) {
+export default function AccreditationList({ accreditations, isLoading, viewMode }: Props) {
   if (isLoading) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -143,6 +244,30 @@ export default function AccreditationList({ accreditations, isLoading }: Props) 
       <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
         <p className="font-medium">Encara no hi ha acreditacions</p>
         <p className="text-sm mt-1">Les noves compres apareixeran aquí automàticament</p>
+      </div>
+    );
+  }
+
+  if (viewMode === 'list') {
+    return (
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Client</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Comanda</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Codi</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Estat</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Data</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Accions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {accreditations.map((accreditation) => (
+              <AccreditationRow key={accreditation.id} accreditation={accreditation} />
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }

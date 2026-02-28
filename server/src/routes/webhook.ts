@@ -1,7 +1,60 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import { accreditations } from '../db/index.js';
+import db from '../db/index.js';
+import { accreditations, codes, templates } from '../db/index.js';
+import { sendAccreditationEmail } from '../services/emailService.js';
+import { appendToGoogleSheets, updateRowInGoogleSheets } from '../services/sheetsService.js';
 import type { WooCommerceWebhookPayload } from '../types/index.js';
+
+interface Settings {
+  auto_assign_codes: number;
+  auto_send_emails: number;
+}
+
+function getSettings(): Settings {
+  return db.prepare('SELECT auto_assign_codes, auto_send_emails FROM settings WHERE id = 1').get() as Settings || {
+    auto_assign_codes: 0,
+    auto_send_emails: 0
+  };
+}
+
+async function autoProcessAccreditation(accreditationId: number, type: string) {
+  const settings = getSettings();
+
+  if (!settings.auto_assign_codes) {
+    return;
+  }
+
+  // Auto-assign code
+  const code = codes.getNextAvailable(type);
+  if (!code) {
+    console.log(`Auto-assign: No available codes for type ${type}`);
+    return;
+  }
+
+  let updated = accreditations.assignCode(accreditationId, code.id);
+  console.log(`Auto-assigned code ${code.code} to accreditation ${accreditationId}`);
+
+  // Auto-send email if enabled
+  if (settings.auto_send_emails && updated) {
+    const template = templates.getActive(type);
+    if (!template) {
+      console.log(`Auto-email: No active template for type ${type}`);
+      return;
+    }
+
+    const refreshedAccreditation = accreditations.getById(accreditationId);
+    if (!refreshedAccreditation) return;
+
+    const result = await sendAccreditationEmail(refreshedAccreditation, template);
+    if (result.success) {
+      accreditations.markEmailSent(accreditationId);
+      console.log(`Auto-sent email to ${refreshedAccreditation.customer_email}`);
+    } else {
+      console.error(`Auto-email failed: ${result.error}`);
+    }
+  }
+}
 
 const router = Router();
 
@@ -58,6 +111,16 @@ router.post('/woocommerce', (req, res) => {
     });
 
     console.log(`New Premsa accreditation created: ${accreditation.order_id} for ${accreditation.customer_email}`);
+
+    // Sync to Google Sheets
+    appendToGoogleSheets(accreditation).catch(err => {
+      console.error('Google Sheets append error:', err);
+    });
+
+    // Auto-process (assign code and/or send email) based on settings
+    autoProcessAccreditation(accreditation.id, accreditation.type).catch(err => {
+      console.error('Auto-process error:', err);
+    });
 
     res.status(201).json({ message: 'Accreditation created', accreditation });
   } catch (error) {

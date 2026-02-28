@@ -45,7 +45,19 @@ db.exec(`
     body TEXT NOT NULL,
     is_active INTEGER DEFAULT 1
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    auto_assign_codes INTEGER DEFAULT 0,
+    auto_send_emails INTEGER DEFAULT 0
+  );
 `);
+
+// Insert default settings if none exists
+const settingsCount = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
+if (settingsCount.count === 0) {
+  db.prepare('INSERT INTO settings (id, auto_assign_codes, auto_send_emails) VALUES (1, 0, 0)').run();
+}
 
 // Insert default email template if none exists
 const templateCount = db.prepare('SELECT COUNT(*) as count FROM email_templates WHERE type = ?').get('premsa') as { count: number };

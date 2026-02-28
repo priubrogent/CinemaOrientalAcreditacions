@@ -7,6 +7,8 @@ import webhookRouter from './routes/webhook.js';
 import accreditationsRouter from './routes/accreditations.js';
 import codesRouter from './routes/codes.js';
 import templatesRouter from './routes/templates.js';
+import settingsRouter from './routes/settings.js';
+import sheetsRouter from './routes/sheets.js';
 
 // Initialize database
 import './db/index.js';
@@ -26,6 +28,8 @@ app.use('/api/webhook', webhookRouter);
 app.use('/api/accreditations', accreditationsRouter);
 app.use('/api/codes', codesRouter);
 app.use('/api/templates', templatesRouter);
+app.use('/api/settings', settingsRouter);
+app.use('/api/sheets', sheetsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
