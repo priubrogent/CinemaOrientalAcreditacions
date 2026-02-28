@@ -1,0 +1,176 @@
+import db from './schema.js';
+import type { Accreditation, Code, EmailTemplate } from '../types/index.js';
+
+// Accreditations
+export const accreditations = {
+  getAll: (): Accreditation[] => {
+    return db.prepare(`
+      SELECT a.*, c.code
+      FROM accreditations a
+      LEFT JOIN codes c ON a.code_id = c.id
+      ORDER BY a.created_at DESC
+    `).all() as Accreditation[];
+  },
+
+  getById: (id: number): Accreditation | undefined => {
+    return db.prepare(`
+      SELECT a.*, c.code
+      FROM accreditations a
+      LEFT JOIN codes c ON a.code_id = c.id
+      WHERE a.id = ?
+    `).get(id) as Accreditation | undefined;
+  },
+
+  getByOrderId: (orderId: string): Accreditation | undefined => {
+    return db.prepare(`
+      SELECT a.*, c.code
+      FROM accreditations a
+      LEFT JOIN codes c ON a.code_id = c.id
+      WHERE a.order_id = ?
+    `).get(orderId) as Accreditation | undefined;
+  },
+
+  create: (data: { order_id: string; customer_name: string; customer_email: string; type?: string }): Accreditation => {
+    const result = db.prepare(`
+      INSERT INTO accreditations (order_id, customer_name, customer_email, type)
+      VALUES (?, ?, ?, ?)
+    `).run(data.order_id, data.customer_name, data.customer_email, data.type || 'premsa');
+
+    return accreditations.getById(result.lastInsertRowid as number)!;
+  },
+
+  assignCode: (id: number, codeId: number): Accreditation | undefined => {
+    db.prepare(`
+      UPDATE accreditations
+      SET code_id = ?, status = 'code_assigned'
+      WHERE id = ?
+    `).run(codeId, id);
+
+    codes.markUsed(codeId);
+    return accreditations.getById(id);
+  },
+
+  markEmailSent: (id: number): Accreditation | undefined => {
+    db.prepare(`
+      UPDATE accreditations
+      SET status = 'email_sent', email_sent_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(id);
+
+    return accreditations.getById(id);
+  },
+
+  delete: (id: number): boolean => {
+    const accred = accreditations.getById(id);
+    if (accred?.code_id) {
+      codes.markUnused(accred.code_id);
+    }
+    const result = db.prepare('DELETE FROM accreditations WHERE id = ?').run(id);
+    return result.changes > 0;
+  }
+};
+
+// Codes
+export const codes = {
+  getAll: (type?: string): Code[] => {
+    if (type) {
+      return db.prepare('SELECT * FROM codes WHERE type = ? ORDER BY id DESC').all(type) as Code[];
+    }
+    return db.prepare('SELECT * FROM codes ORDER BY id DESC').all() as Code[];
+  },
+
+  getAvailable: (type: string): Code[] => {
+    return db.prepare('SELECT * FROM codes WHERE type = ? AND is_used = 0 ORDER BY id').all(type) as Code[];
+  },
+
+  getNextAvailable: (type: string): Code | undefined => {
+    return db.prepare('SELECT * FROM codes WHERE type = ? AND is_used = 0 ORDER BY id LIMIT 1').get(type) as Code | undefined;
+  },
+
+  create: (code: string, type: string = 'premsa'): Code => {
+    const result = db.prepare('INSERT INTO codes (code, type) VALUES (?, ?)').run(code, type);
+    return db.prepare('SELECT * FROM codes WHERE id = ?').get(result.lastInsertRowid) as Code;
+  },
+
+  createBulk: (codeList: string[], type: string = 'premsa'): number => {
+    const stmt = db.prepare('INSERT OR IGNORE INTO codes (code, type) VALUES (?, ?)');
+    const insertMany = db.transaction((codes: string[]) => {
+      let inserted = 0;
+      for (const code of codes) {
+        const trimmed = code.trim();
+        if (trimmed) {
+          const result = stmt.run(trimmed, type);
+          if (result.changes > 0) inserted++;
+        }
+      }
+      return inserted;
+    });
+    return insertMany(codeList);
+  },
+
+  markUsed: (id: number): void => {
+    db.prepare('UPDATE codes SET is_used = 1, assigned_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+  },
+
+  markUnused: (id: number): void => {
+    db.prepare('UPDATE codes SET is_used = 0, assigned_at = NULL WHERE id = ?').run(id);
+  },
+
+  delete: (id: number): boolean => {
+    const result = db.prepare('DELETE FROM codes WHERE id = ? AND is_used = 0').run(id);
+    return result.changes > 0;
+  }
+};
+
+// Email Templates
+export const templates = {
+  getAll: (type?: string): EmailTemplate[] => {
+    if (type) {
+      return db.prepare('SELECT * FROM email_templates WHERE type = ? ORDER BY id DESC').all(type) as EmailTemplate[];
+    }
+    return db.prepare('SELECT * FROM email_templates ORDER BY id DESC').all() as EmailTemplate[];
+  },
+
+  getById: (id: number): EmailTemplate | undefined => {
+    return db.prepare('SELECT * FROM email_templates WHERE id = ?').get(id) as EmailTemplate | undefined;
+  },
+
+  getActive: (type: string): EmailTemplate | undefined => {
+    return db.prepare('SELECT * FROM email_templates WHERE type = ? AND is_active = 1 LIMIT 1').get(type) as EmailTemplate | undefined;
+  },
+
+  create: (data: { name: string; type: string; subject: string; body: string }): EmailTemplate => {
+    const result = db.prepare(`
+      INSERT INTO email_templates (name, type, subject, body)
+      VALUES (?, ?, ?, ?)
+    `).run(data.name, data.type, data.subject, data.body);
+
+    return templates.getById(result.lastInsertRowid as number)!;
+  },
+
+  update: (id: number, data: Partial<{ name: string; subject: string; body: string; is_active: boolean }>): EmailTemplate | undefined => {
+    const current = templates.getById(id);
+    if (!current) return undefined;
+
+    db.prepare(`
+      UPDATE email_templates
+      SET name = ?, subject = ?, body = ?, is_active = ?
+      WHERE id = ?
+    `).run(
+      data.name ?? current.name,
+      data.subject ?? current.subject,
+      data.body ?? current.body,
+      data.is_active !== undefined ? (data.is_active ? 1 : 0) : current.is_active,
+      id
+    );
+
+    return templates.getById(id);
+  },
+
+  delete: (id: number): boolean => {
+    const result = db.prepare('DELETE FROM email_templates WHERE id = ?').run(id);
+    return result.changes > 0;
+  }
+};
+
+export default db;
