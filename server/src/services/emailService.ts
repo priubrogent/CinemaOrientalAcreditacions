@@ -1,16 +1,7 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import type { Accreditation, EmailTemplate } from '../types/index.js';
 
-const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: smtpPort,
-  secure: smtpPort === 465, // true for port 465 (SSL), false for 587 (TLS)
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export function renderTemplate(template: string, data: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] || '');
@@ -35,13 +26,19 @@ export async function sendAccreditationEmail(
   const html = renderTemplate(template.body, data);
 
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'NITS Festival <onboarding@resend.dev>',
       to: accreditation.customer_email,
       subject,
       html,
     });
 
+    if (result.error) {
+      console.error('Resend error:', result.error);
+      return { success: false, error: result.error.message };
+    }
+
+    console.log('Email sent via Resend:', result.data?.id);
     return { success: true };
   } catch (error) {
     console.error('Email send error:', error);
@@ -53,10 +50,5 @@ export async function sendAccreditationEmail(
 }
 
 export async function verifyConnection(): Promise<boolean> {
-  try {
-    await transporter.verify();
-    return true;
-  } catch {
-    return false;
-  }
+  return !!process.env.RESEND_API_KEY;
 }
