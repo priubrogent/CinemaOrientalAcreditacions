@@ -165,25 +165,25 @@ function AccreditationCard({ accreditation, type }: { accreditation: Accreditati
   const isLoading = assignCodeMutation.isPending || sendEmailMutation.isPending || deleteMutation.isPending;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="font-medium text-gray-900">{accreditation.customer_name}</h3>
-          <p className="text-sm text-gray-500">{accreditation.customer_email}</p>
+    <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm transition-shadow">
+      <div className="flex justify-between items-start mb-2 sm:mb-3 gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-medium text-gray-900 truncate">{accreditation.customer_name}</h3>
+          <p className="text-sm text-gray-500 truncate">{accreditation.customer_email}</p>
         </div>
         <StatusBadge status={accreditation.status} />
       </div>
 
-      <div className="text-sm text-gray-600 mb-3 space-y-1">
+      <div className="text-sm text-gray-600 mb-2 sm:mb-3 space-y-0.5 sm:space-y-1">
         <p><span className="font-medium">Comanda:</span> #{accreditation.order_id}</p>
         {accreditation.code && (
-          <p><span className="font-medium">Codi:</span> <code className="bg-gray-100 px-2 py-0.5 rounded">{accreditation.code}</code></p>
+          <p className="truncate"><span className="font-medium">Codi:</span> <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{accreditation.code}</code></p>
         )}
         <p><span className="font-medium">Data:</span> {new Date(accreditation.created_at).toLocaleDateString('ca-ES')}</p>
       </div>
 
       {error && (
-        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+        <div className="mb-2 sm:mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
           {error}
         </div>
       )}
@@ -193,9 +193,9 @@ function AccreditationCard({ accreditation, type }: { accreditation: Accreditati
           <button
             onClick={() => assignCodeMutation.mutate()}
             disabled={isLoading}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {assignCodeMutation.isPending ? 'Assignant...' : 'Assignar codi'}
+            {assignCodeMutation.isPending ? '...' : 'Assignar'}
           </button>
         )}
 
@@ -203,15 +203,15 @@ function AccreditationCard({ accreditation, type }: { accreditation: Accreditati
           <button
             onClick={() => sendEmailMutation.mutate()}
             disabled={isLoading}
-            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 sm:flex-none px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sendEmailMutation.isPending ? 'Enviant...' : 'Enviar email'}
+            {sendEmailMutation.isPending ? '...' : 'Enviar'}
           </button>
         )}
 
         {accreditation.status === 'email_sent' && (
-          <span className="text-sm text-green-600">
-            Enviat el {new Date(accreditation.email_sent_at!).toLocaleDateString('ca-ES')}
+          <span className="text-xs sm:text-sm text-green-600">
+            Enviat {new Date(accreditation.email_sent_at!).toLocaleDateString('ca-ES')}
           </span>
         )}
 
@@ -249,32 +249,42 @@ export default function AccreditationList({ accreditations, isLoading, viewMode,
     );
   }
 
+  // On mobile, always show cards
   if (viewMode === 'list') {
     return (
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Client</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Comanda</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Codi</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Estat</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Data</th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Accions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accreditations.map((accreditation) => (
-              <AccreditationRow key={accreditation.id} accreditation={accreditation} type={type} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <>
+        {/* Table view for desktop */}
+        <div className="hidden md:block border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Client</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Comanda</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Codi</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Estat</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Data</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Accions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accreditations.map((accreditation) => (
+                <AccreditationRow key={accreditation.id} accreditation={accreditation} type={type} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Card view for mobile even in list mode */}
+        <div className="md:hidden grid gap-3">
+          {accreditations.map((accreditation) => (
+            <AccreditationCard key={accreditation.id} accreditation={accreditation} type={type} />
+          ))}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {accreditations.map((accreditation) => (
         <AccreditationCard key={accreditation.id} accreditation={accreditation} type={type} />
       ))}

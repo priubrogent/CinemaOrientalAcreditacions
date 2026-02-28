@@ -63,9 +63,9 @@ export default function TypeDashboard() {
 
   return (
     <div>
-      {/* Stats bar */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex gap-6 text-sm">
+      {/* Stats bar - responsive grid */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-4 lg:mb-6">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-6 text-sm">
           <div>
             <span className="text-gray-500">Total:</span>{' '}
             <span className="font-medium">{accreditations.length}</span>
@@ -79,17 +79,18 @@ export default function TypeDashboard() {
             <span className="font-medium text-blue-600">{codeAssignedCount}</span>
           </div>
           <div>
-            <span className="text-gray-500">Codis disponibles:</span>{' '}
+            <span className="text-gray-500">Codis:</span>{' '}
             <span className="font-medium text-green-600">{codesData?.count ?? 0}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
+      {/* Header - responsive layout */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">
           Acreditacions {TYPE_DISPLAY_NAMES[type]}
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* View toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
@@ -110,13 +111,13 @@ export default function TypeDashboard() {
             </button>
           </div>
 
-          {/* CSV Download */}
+          {/* CSV Download - hidden on very small screens */}
           <button
             onClick={downloadCSV}
             disabled={accreditations.length === 0}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            className="hidden sm:block px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
           >
-            Descarregar CSV
+            CSV
           </button>
 
           <TestAccreditationForm type={type} />

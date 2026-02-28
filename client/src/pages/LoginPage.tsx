@@ -31,15 +31,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Asian Summer Film Festival</h1>
-          <p className="text-gray-600 mt-2">Sistema d'Acreditacions</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Asian Summer Film Festival</h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">Sistema d'Acreditacions</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-xl font-semibold mb-6 text-center">Iniciar Sessió</h2>
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-center">Iniciar Sessió</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
