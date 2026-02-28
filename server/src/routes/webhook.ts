@@ -28,15 +28,17 @@ router.post('/woocommerce', (req, res) => {
   try {
     const data = req.body as WooCommerceWebhookPayload;
 
-    // Check if order contains Premsa product
-    const premsaItem = data.line_items?.find(item =>
-      item.name.toLowerCase().includes('premsa') ||
-      item.sku?.toLowerCase().includes('premsa')
-    );
+    // TEMPORARY: Accept all orders for testing
+    // TODO: Re-enable filtering later
+    // const premsaItem = data.line_items?.find(item =>
+    //   item.name.toLowerCase().includes('premsa') ||
+    //   item.sku?.toLowerCase().includes('premsa')
+    // );
+    // if (!premsaItem) {
+    //   return res.json({ message: 'Order does not contain Premsa accreditation' });
+    // }
 
-    if (!premsaItem) {
-      return res.json({ message: 'Order does not contain Premsa accreditation' });
-    }
+    console.log('Webhook received order:', data.id, 'Items:', data.line_items?.map(i => i.name));
 
     // Check if already exists
     const existing = accreditations.getByOrderId(String(data.id));
