@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, AccreditationType } from '../types';
-import { login as apiLogin, logout as apiLogout, getCurrentUser } from '../api/auth';
+import { login as apiLogin, logout as apiLogout, getCurrentUser, toggleNotifications as apiToggleNotifications } from '../api/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  toggleNotifications: (enabled: boolean) => Promise<void>;
   hasTypeAccess: (type: AccreditationType) => boolean;
   accessibleTypes: AccreditationType[];
 }
@@ -43,6 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function toggleNotifications(enabled: boolean) {
+    const newValue = await apiToggleNotifications(enabled);
+    if (user) {
+      setUser({ ...user, notifications_enabled: newValue });
+    }
+  }
+
   function hasTypeAccess(type: AccreditationType): boolean {
     if (!user) return false;
     if (user.is_admin) return true;
@@ -63,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         logout,
+        toggleNotifications,
         hasTypeAccess,
         accessibleTypes,
       }}

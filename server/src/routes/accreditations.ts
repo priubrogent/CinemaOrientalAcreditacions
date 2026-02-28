@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { accreditations, codes, templates } from '../db/index.js';
+import { accreditations, codes, templates, users } from '../db/index.js';
 import { sendAccreditationEmail } from '../services/emailService.js';
 import { AuthRequest } from '../middleware/auth.js';
 
@@ -116,7 +116,12 @@ router.post('/:id/send-email', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `No active email template for type: ${accreditation.type}` });
     }
 
-    const result = await sendAccreditationEmail(accreditation, template);
+    // Check if user wants notification copy
+    const notifyUserEmail = req.user && users.getNotificationsEnabled(req.user.id)
+      ? req.user.email
+      : undefined;
+
+    const result = await sendAccreditationEmail(accreditation, template, { notifyUserEmail });
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });

@@ -36,6 +36,7 @@ export interface User {
   email: string;
   is_admin: boolean;
   is_active: boolean;
+  notifications_enabled: boolean;
   types: AccreditationType[];
   created_at?: string;
 }

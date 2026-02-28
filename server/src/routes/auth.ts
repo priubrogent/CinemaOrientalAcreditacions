@@ -12,6 +12,7 @@ interface User {
   password_hash: string;
   is_admin: number;
   is_active: number;
+  notifications_enabled: number;
 }
 
 // Get user permissions
@@ -73,6 +74,7 @@ router.post('/login', (req, res) => {
         username: user.username,
         email: user.email,
         is_admin: !!user.is_admin,
+        notifications_enabled: !!user.notifications_enabled,
         types,
       },
     });
@@ -102,7 +104,7 @@ router.get('/me', (req: AuthRequest, res: Response) => {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
 
     const user = db.prepare(`
-      SELECT id, username, email, is_admin, is_active
+      SELECT id, username, email, is_admin, is_active, notifications_enabled
       FROM users WHERE id = ?
     `).get(decoded.id) as Omit<User, 'password_hash'> | undefined;
 
@@ -119,12 +121,42 @@ router.get('/me', (req: AuthRequest, res: Response) => {
         username: user.username,
         email: user.email,
         is_admin: !!user.is_admin,
+        notifications_enabled: !!user.notifications_enabled,
         types,
       },
     });
   } catch (error) {
     res.clearCookie('access_token', { path: '/' });
     return res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// PATCH /api/auth/notifications - Toggle notifications preference
+router.patch('/notifications', (req: AuthRequest, res: Response) => {
+  const token = req.cookies?.access_token;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  try {
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled must be a boolean' });
+    }
+
+    db.prepare(`
+      UPDATE users SET notifications_enabled = ? WHERE id = ?
+    `).run(enabled ? 1 : 0, decoded.id);
+
+    res.json({ notifications_enabled: enabled });
+  } catch (error) {
+    console.error('Update notifications error:', error);
+    res.status(500).json({ error: 'Failed to update notifications preference' });
   }
 });
 

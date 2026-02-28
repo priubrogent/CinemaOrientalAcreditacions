@@ -45,3 +45,17 @@ export async function getCurrentUser(): Promise<User | null> {
   const data = await res.json();
   return data.user;
 }
+
+export async function toggleNotifications(enabled: boolean): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/auth/notifications`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to update notifications preference');
+  }
+  const data = await res.json();
+  return data.notifications_enabled;
+}

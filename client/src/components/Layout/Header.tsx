@@ -6,8 +6,9 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, toggleNotifications } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,6 +26,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
       await logout();
     } catch (error) {
       console.error('Logout failed:', error);
+    }
+  }
+
+  async function handleToggleNotifications() {
+    if (isTogglingNotifications || !user) return;
+    setIsTogglingNotifications(true);
+    try {
+      await toggleNotifications(!user.notifications_enabled);
+    } catch (error) {
+      console.error('Failed to toggle notifications:', error);
+    } finally {
+      setIsTogglingNotifications(false);
     }
   }
 
@@ -75,6 +88,26 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   Admin
                 </span>
               )}
+            </div>
+            <div className="px-4 py-2 border-b border-gray-100">
+              <button
+                onClick={handleToggleNotifications}
+                disabled={isTogglingNotifications}
+                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-gray-900 disabled:opacity-50"
+              >
+                <span>Notificacions</span>
+                <div
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    user?.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                      user?.notifications_enabled ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </div>
+              </button>
             </div>
             <button
               onClick={handleLogout}

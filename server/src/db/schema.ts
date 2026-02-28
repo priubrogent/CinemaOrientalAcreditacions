@@ -54,6 +54,7 @@ db.exec(`
     password_hash TEXT NOT NULL,
     is_admin INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
+    notifications_enabled INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -77,6 +78,13 @@ try {
   db.exec('DROP TABLE IF EXISTS settings');
 } catch (e) {
   // ignore if doesn't exist
+}
+
+// Add notifications_enabled column if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 0');
+} catch (e) {
+  // Column already exists, ignore
 }
 
 // Insert default type settings if none exist

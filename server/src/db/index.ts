@@ -122,6 +122,19 @@ export const codes = {
   }
 };
 
+// Users
+export const users = {
+  getNotificationsEnabled: (userId: number): boolean => {
+    const result = db.prepare('SELECT notifications_enabled FROM users WHERE id = ?').get(userId) as { notifications_enabled: number } | undefined;
+    return !!result?.notifications_enabled;
+  },
+
+  getEmailById: (userId: number): string | undefined => {
+    const result = db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as { email: string } | undefined;
+    return result?.email;
+  }
+};
+
 // Email Templates
 export const templates = {
   getAll: (type?: string): EmailTemplate[] => {
