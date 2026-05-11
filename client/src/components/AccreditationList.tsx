@@ -1,293 +1,630 @@
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Accreditation, AccreditationType } from '../types';
 import { assignCode, sendEmail, deleteAccreditation } from '../api/accreditations';
-import { useState } from 'react';
 
-type ViewMode = 'cards' | 'list';
+type ViewMode = 'list' | 'cards';
+type FilterKey = 'all' | 'pending' | 'code_assigned' | 'email_sent';
+type NitomanVariant = 'all' | 'nitoman' | 'super';
 
 interface Props {
   accreditations: Accreditation[];
   isLoading: boolean;
-  viewMode: ViewMode;
-  type?: AccreditationType;
+  type: AccreditationType;
+  variant: NitomanVariant;
 }
 
-function StatusBadge({ status }: { status: Accreditation['status'] }) {
-  const styles = {
-    pending: 'bg-gray-100 text-gray-700 border border-gray-300',
-    code_assigned: 'bg-blue-50 text-blue-700 border border-blue-200',
-    email_sent: 'bg-green-50 text-green-700 border border-green-200',
-  };
+// ─── Status atom ────────────────────────────────────────────────────────────
+const STATUS_MAP = {
+  pending:       { label: 'Pendent',       dot: 'var(--ink-50)',  ring: 'var(--rule)',      fg: 'var(--ink-70)' },
+  code_assigned: { label: 'Codi assignat', dot: 'var(--gold)',    ring: 'var(--gold-30)',   fg: 'var(--gold-ink)' },
+  email_sent:    { label: 'Enviat',        dot: 'var(--accent)',  ring: 'var(--accent-20)', fg: 'var(--accent)' },
+} as const;
 
-  const labels = {
-    pending: 'Pendent',
-    code_assigned: 'Codi assignat',
-    email_sent: 'Email enviat',
-  };
-
+function StatusPill({ status }: { status: Accreditation['status'] }) {
+  const s = STATUS_MAP[status];
   return (
-    <span className={`px-2 py-1 text-xs font-medium rounded ${styles[status]}`}>
-      {labels[status]}
+    <span className="status-pill" style={{ borderColor: s.ring, color: s.fg }}>
+      <span className="status-dot" style={{ background: s.dot }} />
+      {s.label}
     </span>
   );
 }
 
-function AccreditationRow({ accreditation, type }: { accreditation: Accreditation; type?: AccreditationType }) {
+// ─── Row detail ─────────────────────────────────────────────────────────────
+function RowDetail({
+  row,
+  type,
+  onSend,
+  onDelete,
+  isSending,
+}: {
+  row: Accreditation;
+  type: AccreditationType;
+  onSend: () => void;
+  onDelete: () => void;
+  isSending: boolean;
+}) {
+  const TYPE_LABELS: Record<AccreditationType, string> = {
+    premsa: 'Premsa', professional: 'Professional', nitoman: 'Nitòman',
+  };
+  return (
+    <div className="detail-grid">
+      <div className="detail-col">
+        <h4>Acreditació</h4>
+        <dl>
+          <dt>Comanda</dt><dd>{row.order_id}</dd>
+          <dt>Email</dt><dd>{row.customer_email}</dd>
+          {row.outlet && <><dt>Mitjà / Empresa</dt><dd>{row.outlet}</dd></>}
+          <dt>Codi</dt>
+          <dd>{row.code ? <code className="code-chip">{row.code}</code> : <em>encara no assignat</em>}</dd>
+          <dt>Creat</dt>
+          <dd>{new Date(row.created_at).toLocaleString('ca-ES')}</dd>
+          {row.email_sent_at && (
+            <><dt>Email enviat</dt><dd>{new Date(row.email_sent_at).toLocaleString('ca-ES')}</dd></>
+          )}
+        </dl>
+
+        <h4>Activitat</h4>
+        <ol className="timeline">
+          <li>
+            <span className="t-dot" data-tone="ok" />
+            <span>
+              Sol·licitud rebuda<br/>
+              <em>{new Date(row.created_at).toLocaleString('ca-ES')}</em>
+            </span>
+          </li>
+          {row.code && (
+            <li>
+              <span className="t-dot" data-tone="info" />
+              <span>
+                Codi <code>{row.code}</code> assignat
+              </span>
+            </li>
+          )}
+          {row.email_sent_at && (
+            <li>
+              <span className="t-dot" data-tone="ok" />
+              <span>
+                Email enviat a {row.customer_email}<br/>
+                <em>{new Date(row.email_sent_at).toLocaleString('ca-ES')}</em>
+              </span>
+            </li>
+          )}
+        </ol>
+      </div>
+
+      <div className="detail-col">
+        <div className="mail-head">
+          <span className="mail-from">nits@cinemaoriental.com</span>
+          <span className="mail-arrow">→</span>
+          <span>{row.customer_email}</span>
+        </div>
+        <div className="mail-subject">
+          La teva acreditació de {TYPE_LABELS[type]} — Festival Nits
+        </div>
+        <div className="mail-body">
+          <p>Hola {row.customer_name.split(' ')[0]},</p>
+          <p>Gràcies per acreditar-te al festival. Aquí tens el teu codi:</p>
+          <div className="mail-code">{row.code || 'XXX-26-000'}</div>
+          <p>Presenta'l a l'entrada del recinte (Bassa dels Hermanos, Vic) per recollir la teva acreditació física.</p>
+          <p>Ens veiem al juliol.<br/>— L'equip de Nits</p>
+        </div>
+        <div className="detail-actions">
+          {row.status === 'code_assigned' && (
+            <button className="primary-btn" onClick={onSend} disabled={isSending}>
+              {isSending ? 'Enviant…' : 'Enviar email'}
+            </button>
+          )}
+          <button className="ghost-btn">Editar plantilla</button>
+          <button className="ghost-btn">Copiar enllaç</button>
+          <button className="ghost-btn danger" onClick={onDelete}>
+            Eliminar acreditació
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Single row ──────────────────────────────────────────────────────────────
+function AccRow({
+  row,
+  type,
+  checked,
+  onCheck,
+  expanded,
+  onExpand,
+  onRefresh,
+}: {
+  row: Accreditation;
+  type: AccreditationType;
+  checked: boolean;
+  onCheck: () => void;
+  expanded: boolean;
+  onExpand: () => void;
+  onRefresh: () => void;
+}) {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const assignCodeMutation = useMutation({
-    mutationFn: () => assignCode(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      queryClient.invalidateQueries({ queryKey: ['codes', type] });
-      setError(null);
-    },
-    onError: (err: Error) => setError(err.message),
+  const assignMut = useMutation({
+    mutationFn: () => assignCode(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); queryClient.invalidateQueries({ queryKey: ['codes', type] }); setError(null); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const sendEmailMutation = useMutation({
-    mutationFn: () => sendEmail(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      setError(null);
-    },
-    onError: (err: Error) => setError(err.message),
+  const sendMut = useMutation({
+    mutationFn: () => sendEmail(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); setError(null); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteAccreditation(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      queryClient.invalidateQueries({ queryKey: ['codes', type] });
-    },
-    onError: (err: Error) => setError(err.message),
+  const deleteMut = useMutation({
+    mutationFn: () => deleteAccreditation(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); queryClient.invalidateQueries({ queryKey: ['codes', type] }); onRefresh(); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const isLoading = assignCodeMutation.isPending || sendEmailMutation.isPending || deleteMutation.isPending;
+  const dateStr = new Date(row.created_at).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' });
+  const isLoading = assignMut.isPending || sendMut.isPending || deleteMut.isPending;
 
   return (
     <>
-      <tr className="border-b border-gray-100 hover:bg-gray-50">
-        <td className="py-3 px-4">
-          <div className="font-medium text-gray-900">{accreditation.customer_name}</div>
-          <div className="text-sm text-gray-500">{accreditation.customer_email}</div>
+      <tr className={`row ${checked ? 'is-checked' : ''} ${expanded ? 'is-expanded' : ''}`}>
+        <td className="col-check">
+          <label className="check">
+            <input type="checkbox" checked={checked} onChange={onCheck} />
+            <span />
+          </label>
         </td>
-        <td className="py-3 px-4 text-sm text-gray-600">#{accreditation.order_id}</td>
-        <td className="py-3 px-4">
-          {accreditation.code ? (
-            <code className="bg-gray-100 px-2 py-0.5 rounded text-sm">{accreditation.code}</code>
-          ) : (
-            <span className="text-gray-400 text-sm">-</span>
+        <td className="cell-name" onClick={onExpand} style={{ cursor: 'pointer' }}>
+          <div className="name">
+            {row.customer_name}
+            {row.variant === 'super' && <span className="variant-tag">Super</span>}
+          </div>
+          <div className="email">{row.customer_email}</div>
+        </td>
+        <td className="col-order" onClick={onExpand} style={{ cursor: 'pointer' }}>
+          <div className="order-id">{row.order_id}</div>
+          {row.outlet && <div className="outlet">{row.outlet}</div>}
+        </td>
+        <td onClick={onExpand} style={{ cursor: 'pointer' }}>
+          {row.code
+            ? <code className="code-chip">{row.code}</code>
+            : <span className="dash">—</span>
+          }
+        </td>
+        <td onClick={onExpand} style={{ cursor: 'pointer' }}>
+          <StatusPill status={row.status} />
+        </td>
+        <td className="col-date" onClick={onExpand} style={{ cursor: 'pointer' }}>
+          <span>{dateStr}</span>
+          {row.email_sent_at && (
+            <div className="sub-date">
+              → {new Date(row.email_sent_at).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' })}
+            </div>
           )}
         </td>
-        <td className="py-3 px-4">
-          <StatusBadge status={accreditation.status} />
-        </td>
-        <td className="py-3 px-4 text-sm text-gray-600">
-          {new Date(accreditation.created_at).toLocaleDateString('ca-ES')}
-        </td>
-        <td className="py-3 px-4">
-          <div className="flex gap-2">
-            {accreditation.status === 'pending' && (
-              <button
-                onClick={() => assignCodeMutation.mutate()}
-                disabled={isLoading}
-                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {assignCodeMutation.isPending ? '...' : 'Assignar'}
-              </button>
-            )}
-            {accreditation.status === 'code_assigned' && (
-              <button
-                onClick={() => sendEmailMutation.mutate()}
-                disabled={isLoading}
-                className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-              >
-                {sendEmailMutation.isPending ? '...' : 'Enviar'}
-              </button>
-            )}
-            <button
-              onClick={() => {
-                if (confirm('Segur que vols eliminar aquesta acreditació?')) {
-                  deleteMutation.mutate();
-                }
-              }}
-              disabled={isLoading}
-              className="px-2 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-50"
-            >
-              Eliminar
+        <td className="col-actions">
+          {row.status === 'pending' && (
+            <button className="row-btn row-btn-primary" onClick={() => assignMut.mutate()} disabled={isLoading}>
+              {assignMut.isPending ? '…' : 'Assignar'}
             </button>
-          </div>
+          )}
+          {row.status === 'code_assigned' && (
+            <button className="row-btn row-btn-primary" onClick={() => sendMut.mutate()} disabled={isLoading}>
+              {sendMut.isPending ? '…' : 'Enviar'}
+            </button>
+          )}
+          {row.status === 'email_sent' && (
+            <button className="row-btn row-btn-ghost">Reenviar</button>
+          )}
+          <button className="row-btn-icon" onClick={onExpand} title="Detalls">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d={expanded ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} />
+            </svg>
+          </button>
         </td>
       </tr>
+
       {error && (
         <tr>
-          <td colSpan={6} className="px-4 py-2 bg-red-50 text-sm text-red-700">{error}</td>
+          <td colSpan={7} style={{ padding: '8px 14px', background: 'var(--accent-08)', color: 'var(--accent)', fontSize: '13px', borderBottom: '1px solid var(--rule-soft)' }}>
+            {error}
+          </td>
+        </tr>
+      )}
+
+      {expanded && (
+        <tr className="row-detail-wrap">
+          <td colSpan={7}>
+            <RowDetail
+              row={row}
+              type={type}
+              onSend={() => sendMut.mutate()}
+              onDelete={() => { if (confirm('Segur que vols eliminar aquesta acreditació?')) deleteMut.mutate(); }}
+              isSending={sendMut.isPending}
+            />
+          </td>
         </tr>
       )}
     </>
   );
 }
 
-function AccreditationCard({ accreditation, type }: { accreditation: Accreditation; type?: AccreditationType }) {
+// ─── Card ────────────────────────────────────────────────────────────────────
+function AccCard({ row, type }: { row: Accreditation; type: AccreditationType }) {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const assignCodeMutation = useMutation({
-    mutationFn: () => assignCode(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      queryClient.invalidateQueries({ queryKey: ['codes', type] });
-      setError(null);
-    },
-    onError: (err: Error) => setError(err.message),
+  const assignMut = useMutation({
+    mutationFn: () => assignCode(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); queryClient.invalidateQueries({ queryKey: ['codes', type] }); setError(null); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const sendEmailMutation = useMutation({
-    mutationFn: () => sendEmail(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      setError(null);
-    },
-    onError: (err: Error) => setError(err.message),
+  const sendMut = useMutation({
+    mutationFn: () => sendEmail(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); setError(null); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteAccreditation(accreditation.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
-      queryClient.invalidateQueries({ queryKey: ['codes', type] });
-    },
-    onError: (err: Error) => setError(err.message),
+  const deleteMut = useMutation({
+    mutationFn: () => deleteAccreditation(row.id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accreditations', type] }); queryClient.invalidateQueries({ queryKey: ['codes', type] }); },
+    onError: (e: Error) => setError(e.message),
   });
 
-  const isLoading = assignCodeMutation.isPending || sendEmailMutation.isPending || deleteMutation.isPending;
+  const isLoading = assignMut.isPending || sendMut.isPending || deleteMut.isPending;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm transition-shadow">
-      <div className="flex justify-between items-start mb-2 sm:mb-3 gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-900 truncate">{accreditation.customer_name}</h3>
-          <p className="text-sm text-gray-500 truncate">{accreditation.customer_email}</p>
+    <article className="acc-card">
+      <header className="card-head">
+        <div>
+          <div className="name">
+            {row.customer_name}
+            {row.variant === 'super' && <span className="variant-tag">Super</span>}
+          </div>
+          <div className="email">{row.customer_email}</div>
         </div>
-        <StatusBadge status={accreditation.status} />
-      </div>
+        <StatusPill status={row.status} />
+      </header>
 
-      <div className="text-sm text-gray-600 mb-2 sm:mb-3 space-y-0.5 sm:space-y-1">
-        <p><span className="font-medium">Comanda:</span> #{accreditation.order_id}</p>
-        {accreditation.code && (
-          <p className="truncate"><span className="font-medium">Codi:</span> <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{accreditation.code}</code></p>
-        )}
-        <p><span className="font-medium">Data:</span> {new Date(accreditation.created_at).toLocaleDateString('ca-ES')}</p>
-      </div>
+      <dl className="card-meta">
+        <div><dt>Comanda</dt><dd>{row.order_id}</dd></div>
+        <div><dt>Mitjà</dt><dd>{row.outlet ?? '—'}</dd></div>
+        <div>
+          <dt>Codi</dt>
+          <dd>
+            {row.code
+              ? <code className="code-chip">{row.code}</code>
+              : <span className="dash">—</span>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Data</dt>
+          <dd>{new Date(row.created_at).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' })}</dd>
+        </div>
+      </dl>
 
       {error && (
-        <div className="mb-2 sm:mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+        <div style={{ marginBottom: '10px', padding: '8px 12px', background: 'var(--accent-08)', borderRadius: 'var(--r-sm)', fontSize: '13px', color: 'var(--accent)' }}>
           {error}
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap">
-        {accreditation.status === 'pending' && (
-          <button
-            onClick={() => assignCodeMutation.mutate()}
-            disabled={isLoading}
-            className="flex-1 sm:flex-none px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {assignCodeMutation.isPending ? '...' : 'Assignar'}
+      <footer className="card-foot">
+        {row.status === 'pending' && (
+          <button className="primary-btn" onClick={() => assignMut.mutate()} disabled={isLoading}>
+            {assignMut.isPending ? '…' : 'Assignar'}
           </button>
         )}
-
-        {accreditation.status === 'code_assigned' && (
-          <button
-            onClick={() => sendEmailMutation.mutate()}
-            disabled={isLoading}
-            className="flex-1 sm:flex-none px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sendEmailMutation.isPending ? '...' : 'Enviar'}
+        {row.status === 'code_assigned' && (
+          <button className="primary-btn" onClick={() => sendMut.mutate()} disabled={isLoading}>
+            {sendMut.isPending ? '…' : 'Enviar'}
           </button>
         )}
-
-        {accreditation.status === 'email_sent' && (
-          <span className="text-xs sm:text-sm text-green-600">
-            Enviat {new Date(accreditation.email_sent_at!).toLocaleDateString('ca-ES')}
-          </span>
+        {row.status === 'email_sent' && (
+          <button className="ghost-btn">Reenviar</button>
         )}
-
         <button
-          onClick={() => {
-            if (confirm('Segur que vols eliminar aquesta acreditació?')) {
-              deleteMutation.mutate();
-            }
-          }}
+          className="ghost-btn danger"
+          onClick={() => { if (confirm('Segur que vols eliminar?')) deleteMut.mutate(); }}
           disabled={isLoading}
-          className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-50"
         >
           Eliminar
         </button>
-      </div>
-    </div>
+      </footer>
+    </article>
   );
 }
 
-export default function AccreditationList({ accreditations, isLoading, viewMode, type }: Props) {
+// ─── Main component ──────────────────────────────────────────────────────────
+export default function AccreditationList({ accreditations, isLoading, type, variant }: Props) {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [q, setQ] = useState('');
+  const [selected, setSelected] = useState(new Set<number>());
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Reset selection and expanded when type changes
+  useEffect(() => {
+    setSelected(new Set());
+    setExpanded(null);
+    setFilter('all');
+    setQ('');
+  }, [type]);
+
+  // Bulk mutations
+  const bulkAssignMut = useMutation({
+    mutationFn: async (ids: number[]) => {
+      for (const id of ids) {
+        const acc = accreditations.find(a => a.id === id);
+        if (acc?.status === 'pending') await assignCode(id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
+      setSelected(new Set());
+    },
+  });
+
+  const bulkSendMut = useMutation({
+    mutationFn: async (ids: number[]) => {
+      for (const id of ids) {
+        const acc = accreditations.find(a => a.id === id);
+        if (!acc) continue;
+        if (acc.status === 'pending') await assignCode(id);
+        // After assign, it's code_assigned — send email
+        if (acc.status === 'pending' || acc.status === 'code_assigned') {
+          await sendEmail(id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      queryClient.invalidateQueries({ queryKey: ['codes', type] });
+      setSelected(new Set());
+    },
+  });
+
+  const counts = useMemo(() => ({
+    all:           accreditations.length,
+    pending:       accreditations.filter(r => r.status === 'pending').length,
+    code_assigned: accreditations.filter(r => r.status === 'code_assigned').length,
+    email_sent:    accreditations.filter(r => r.status === 'email_sent').length,
+  }), [accreditations]);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return accreditations.filter(r => {
+      if (type === 'nitoman' && variant !== 'all') {
+        if (r.variant !== variant) return false;
+      }
+      if (filter !== 'all' && r.status !== filter) return false;
+      if (!term) return true;
+      return (
+        r.customer_name.toLowerCase().includes(term) ||
+        r.customer_email.toLowerCase().includes(term) ||
+        (r.code ?? '').toLowerCase().includes(term) ||
+        r.order_id.toLowerCase().includes(term)
+      );
+    });
+  }, [accreditations, filter, q, variant, type]);
+
+  const toggle = useCallback((id: number) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelected(prev =>
+      prev.size === filtered.length
+        ? new Set()
+        : new Set(filtered.map(r => r.id))
+    );
+  }, [filtered]);
+
+  const allChecked = filtered.length > 0 && filtered.every(r => selected.has(r.id));
+  const selectedArr = Array.from(selected);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelected(new Set());
+      if (e.key === 'E' && e.shiftKey && selected.size > 0) {
+        bulkSendMut.mutate(selectedArr);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected, selectedArr]);
+
+  const downloadCSV = () => {
+    const headers = ['ID', 'Comanda', 'Nom', 'Email', 'Codi', 'Estat', 'Data creació', 'Email enviat'];
+    const rows = accreditations.map(a => [
+      a.id, a.order_id, a.customer_name, a.customer_email,
+      a.code ?? '', a.status, a.created_at, a.email_sent_at ?? '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `acreditacions_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const FILTERS: { k: FilterKey; label: string }[] = [
+    { k: 'all',           label: 'Totes' },
+    { k: 'pending',       label: 'Pendents' },
+    { k: 'code_assigned', label: 'Per enviar' },
+    { k: 'email_sent',    label: 'Enviades' },
+  ];
+
   if (isLoading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        Carregant acreditacions...
-      </div>
-    );
-  }
-
-  if (accreditations.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-        <p className="font-medium">Encara no hi ha acreditacions</p>
-        <p className="text-sm mt-1">Les noves compres apareixeran aquí automàticament</p>
-      </div>
-    );
-  }
-
-  // On mobile, always show cards
-  if (viewMode === 'list') {
-    return (
-      <>
-        {/* Table view for desktop */}
-        <div className="hidden md:block border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Client</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Comanda</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Codi</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Estat</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Data</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Accions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accreditations.map((accreditation) => (
-                <AccreditationRow key={accreditation.id} accreditation={accreditation} type={type} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {/* Card view for mobile even in list mode */}
-        <div className="md:hidden grid gap-3">
-          {accreditations.map((accreditation) => (
-            <AccreditationCard key={accreditation.id} accreditation={accreditation} type={type} />
-          ))}
-        </div>
-      </>
-    );
+    return <div className="loading-state">Carregant acreditacions…</div>;
   }
 
   return (
-    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {accreditations.map((accreditation) => (
-        <AccreditationCard key={accreditation.id} accreditation={accreditation} type={type} />
-      ))}
+    <div>
+      {/* Toolbar */}
+      <div className={`toolbar ${selected.size > 0 ? 'has-selection' : ''}`}>
+        {selected.size === 0 ? (
+          <>
+            <div className="filter-row">
+              {FILTERS.map(f => (
+                <button
+                  key={f.k}
+                  className={`chip ${filter === f.k ? 'is-active' : ''}`}
+                  onClick={() => setFilter(f.k)}
+                >
+                  {f.label}
+                  <span className="chip-n">{counts[f.k]}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/>
+              </svg>
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Cerca per nom, email, codi o comanda…"
+              />
+              {q && (
+                <button className="clear" onClick={() => setQ('')} aria-label="Esborrar">×</button>
+              )}
+            </div>
+
+            <div className="view-toggle">
+              <button
+                className={viewMode === 'list' ? 'is-on' : ''}
+                onClick={() => setViewMode('list')}
+                title="Vista llista"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+              </button>
+              <button
+                className={viewMode === 'cards' ? 'is-on' : ''}
+                onClick={() => setViewMode('cards')}
+                title="Vista targetes"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+              </button>
+            </div>
+
+            <button className="ghost-btn" onClick={downloadCSV} disabled={accreditations.length === 0}>
+              Exportar CSV
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="selection-info">
+              <button className="link-soft" onClick={() => setSelected(new Set())}>✕</button>
+              <strong>{selected.size}</strong> seleccionades
+            </div>
+            <div className="selection-actions">
+              <button
+                className="ghost-btn"
+                onClick={() => bulkAssignMut.mutate(selectedArr)}
+                disabled={bulkAssignMut.isPending || bulkSendMut.isPending}
+              >
+                {bulkAssignMut.isPending ? 'Assignant…' : 'Assignar codis'}
+              </button>
+              <button
+                className="primary-btn"
+                onClick={() => bulkSendMut.mutate(selectedArr)}
+                disabled={bulkAssignMut.isPending || bulkSendMut.isPending}
+              >
+                {bulkSendMut.isPending ? 'Enviant…' : 'Assignar + Enviar'}
+              </button>
+              <span className="kbd-hint">
+                <kbd>Shift+E</kbd> per enviar · <kbd>Esc</kbd> per sortir
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Content */}
+      {accreditations.length === 0 ? (
+        <div className="empty-state">
+          <p>Encara no hi ha acreditacions</p>
+          <p>Les noves compres apareixeran aquí automàticament</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="table-wrap">
+          <table className="acc-table">
+            <thead>
+              <tr>
+                <th className="col-check">
+                  <label className="check">
+                    <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                    <span />
+                  </label>
+                </th>
+                <th>Client</th>
+                <th>Comanda / Mitjà</th>
+                <th>Codi</th>
+                <th>Estat</th>
+                <th>Data</th>
+                <th className="col-actions">Accions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="empty">No hi ha resultats per aquest filtre.</td>
+                </tr>
+              ) : (
+                filtered.map(row => (
+                  <AccRow
+                    key={row.id}
+                    row={row}
+                    type={type}
+                    checked={selected.has(row.id)}
+                    onCheck={() => toggle(row.id)}
+                    expanded={expanded === row.id}
+                    onExpand={() => setExpanded(expanded === row.id ? null : row.id)}
+                    onRefresh={() => setExpanded(null)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {filtered.length === 0 ? (
+            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+              <p>No hi ha resultats per aquest filtre.</p>
+            </div>
+          ) : (
+            filtered.map(row => (
+              <AccCard key={row.id} row={row} type={type} />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Footer kbd hints */}
+      <div className="footer-hint">
+        <kbd>↑</kbd><kbd>↓</kbd> navegar · <kbd>Space</kbd> seleccionar · <kbd>E</kbd> enviar · <kbd>⌘K</kbd> cerca
+      </div>
     </div>
   );
 }

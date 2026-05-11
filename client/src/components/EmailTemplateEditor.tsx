@@ -80,13 +80,29 @@ export default function EmailTemplateEditor() {
 
   if (!type) return null;
 
+  const typeColor = type === 'premsa' ? 'var(--premsa)' : type === 'professional' ? 'var(--professional)' : 'var(--nitoman)';
+
   if (isLoading) {
-    return <div className="text-gray-500">Carregant plantilles...</div>;
+    return <div className="loading-state">Carregant plantilles…</div>;
   }
 
   return (
+    <div>
+      <section className="hero">
+        <div className="hero-head">
+          <div className="hero-eyebrow">
+            <span className="eyebrow-marker" style={{ background: typeColor }} />
+            {TYPE_DISPLAY_NAMES[type]}
+          </div>
+          <h1 className="hero-title">Plantilles d'email</h1>
+          <p className="hero-lede">
+            Edita la plantilla de confirmació i previsualitza com la rebrà el sol·licitant.
+          </p>
+        </div>
+      </section>
+
     <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4" style={{ display: 'none' }}>
         Plantilla d'Email - {TYPE_DISPLAY_NAMES[type]}
       </h2>
 
@@ -179,6 +195,7 @@ export default function EmailTemplateEditor() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

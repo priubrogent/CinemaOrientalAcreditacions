@@ -1,20 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface HeaderProps {
-  onMenuClick: () => void;
-}
-
-export default function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout, toggleNotifications } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
+export default function Header() {
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -24,99 +19,61 @@ export default function Header({ onMenuClick }: HeaderProps) {
   async function handleLogout() {
     try {
       await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch (err) {
+      console.error('Logout failed:', err);
     }
   }
 
-  async function handleToggleNotifications() {
-    if (isTogglingNotifications || !user) return;
-    setIsTogglingNotifications(true);
-    try {
-      await toggleNotifications(!user.notifications_enabled);
-    } catch (error) {
-      console.error('Failed to toggle notifications:', error);
-    } finally {
-      setIsTogglingNotifications(false);
-    }
-  }
+  const initial = user?.username?.charAt(0).toUpperCase() ?? 'U';
+  const role = user?.is_admin ? 'Admin' : 'Operador';
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
-      <div className="flex items-center gap-3">
-        {/* Hamburger menu button - only visible on mobile */}
-        <button
-          onClick={onMenuClick}
-          className="p-2 -ml-2 rounded-md text-gray-600 hover:bg-gray-100 lg:hidden"
-          aria-label="Open menu"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-        <h2 className="text-base lg:text-lg font-semibold text-gray-800 truncate">
-          Asian Summer Film Festival
-        </h2>
+    <header className="topbar">
+      <div className="breadcrumb">
+        <span className="crumb-muted">Festival Nits de Cinema Oriental</span>
+        <span className="crumb-sep">/</span>
+        <span>Sistema d'Acreditacions</span>
       </div>
 
-      <div className="relative" ref={menuRef}>
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 focus:outline-none"
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-medium">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <span className="hidden sm:inline">{user?.username}</span>
-          <svg
-            className={`w-4 h-4 hidden sm:block transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      <div className="topbar-right">
+        <button className="ghost-btn" title="Cerca global (⌘K)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m20 20-3-3"/>
           </svg>
+          <span>Cerca</span>
+          <kbd>⌘K</kbd>
         </button>
 
-        {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
-            <div className="px-4 py-2 border-b border-gray-100">
-              <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-              {user?.is_admin && (
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                  Admin
-                </span>
-              )}
+        <button className="ghost-btn icon-only" title="Notificacions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M10 21a2 2 0 0 0 4 0"/>
+          </svg>
+          {user?.notifications_enabled && <span className="dot-badge" />}
+        </button>
+
+        <div className="user-chip" ref={menuRef}>
+          <button className="user-chip-btn" onClick={() => setMenuOpen(!menuOpen)}>
+            <div className="user-ava">{initial}</div>
+            <div className="user-meta">
+              <div className="user-name">{user?.username}</div>
+              <div className="user-role">{role}</div>
             </div>
-            <div className="px-4 py-2 border-b border-gray-100">
-              <button
-                onClick={handleToggleNotifications}
-                disabled={isTogglingNotifications}
-                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-gray-900 disabled:opacity-50"
-              >
-                <span>Notificacions</span>
-                <div
-                  className={`relative w-10 h-5 rounded-full transition-colors ${
-                    user?.notifications_enabled ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      user?.notifications_enabled ? 'translate-x-5' : 'translate-x-0.5'
-                    }`}
-                  />
-                </div>
+          </button>
+
+          {menuOpen && (
+            <div className="user-dropdown">
+              <div className="user-dropdown-item" style={{ cursor: 'default', color: 'var(--ink-50)', fontSize: '12px' }}>
+                {user?.email}
+              </div>
+              <div className="user-dropdown-sep" />
+              <button className="user-dropdown-item danger" onClick={handleLogout}>
+                Tancar sessió
               </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Tancar sessió
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

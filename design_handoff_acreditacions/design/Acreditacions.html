@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nits · Acreditacions</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": {
+    "value": "crimson",
+    "color": [
+      "#c8201c",
+      "#171514",
+      "#f5f1e8"
+    ]
+  },
+  "density": "default",
+  "dark": false,
+  "userScope": "nitoman"
+}/*EDITMODE-END*/;
+
+function Root() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Simulate the logged-in user's accessible types. Each type is its own world.
+  const userScopes = {
+    all:          { name: 'Pere Riu',     role: 'Admin',        types: ['premsa','professional','nitoman'] },
+    premsa:       { name: 'Laia Comas',   role: 'Premsa',       types: ['premsa'] },
+    professional: { name: 'Marc Estrada', role: 'Professional', types: ['professional'] },
+    nitoman:      { name: 'Ona Castells', role: 'Nitoman',      types: ['nitoman'] },
+    multi:        { name: 'Aina Vidal',   role: 'Premsa + Pro', types: ['premsa','professional'] },
+  };
+  const user = userScopes[tweaks.userScope] || userScopes.all;
+
+  return (
+    <React.Fragment>
+      <NitsApp tweaks={tweaks} user={user} />
+      <TweaksPanel title="Tweaks" defaultPosition={{ right: 24, bottom: 24 }}>
+        <TweakSection title="Aparença">
+          <TweakColor
+            label="Paleta"
+            value={tweaks.palette}
+            onChange={(v)=>setTweak('palette', v)}
+            options={[
+              { value:'crimson', color:['#c8201c','#171514','#f5f1e8'] },
+              { value:'indigo',  color:['#2b3ea8','#171514','#f5f1e8'] },
+              { value:'ink',     color:['#171514','#8a7349','#f5f1e8'] },
+            ]}
+          />
+          <TweakRadio
+            label="Densitat"
+            value={tweaks.density}
+            onChange={(v)=>setTweak('density', v)}
+            options={[
+              { value:'compact', label:'Compacta' },
+              { value:'default', label:'Normal' },
+              { value:'comfy',   label:'Còmoda' },
+            ]}
+          />
+          <TweakToggle
+            label="Mode fosc"
+            value={tweaks.dark}
+            onChange={(v)=>setTweak('dark', v)}
+          />
+        </TweakSection>
+
+        <TweakSection title="Sessió d'usuari">
+          <TweakSelect
+            label="Permisos"
+            value={tweaks.userScope}
+            onChange={(v)=>setTweak('userScope', v)}
+            options={[
+              { value:'all',          label:'Admin (tots els tipus)' },
+              { value:'premsa',       label:'Només Premsa' },
+              { value:'professional', label:'Només Professional' },
+              { value:'nitoman',      label:'Només Nitoman' },
+              { value:'multi',        label:'Premsa + Professional' },
+            ]}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>

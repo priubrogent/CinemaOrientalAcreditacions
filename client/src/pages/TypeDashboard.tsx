@@ -1,24 +1,129 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAccreditations, fetchAvailableCodes } from '../api/accreditations';
 import AccreditationList from '../components/AccreditationList';
-import TestAccreditationForm from '../components/TestAccreditationForm';
-import type { AccreditationType } from '../types';
+import type { Accreditation, AccreditationType } from '../types';
 
-const TYPE_DISPLAY_NAMES: Record<AccreditationType, string> = {
-  premsa: 'Premsa',
-  professional: 'Professional',
-  nitoman: 'Nitoman',
+const TYPE_DEFS: Record<AccreditationType, { label: string; sub: string }> = {
+  premsa:       { label: 'Premsa',       sub: 'Mitjans i crítica' },
+  professional: { label: 'Professional', sub: 'Indústria audiovisual' },
+  nitoman:      { label: 'Nitòman',      sub: 'Abonats al festival' },
 };
 
-type ViewMode = 'cards' | 'list';
+const TYPE_COLORS: Record<AccreditationType, string> = {
+  premsa:       'var(--premsa)',
+  professional: 'var(--professional)',
+  nitoman:      'var(--nitoman)',
+};
+
+const NITOMAN_VARIANTS = [
+  { key: 'all',    label: 'Tots' },
+  { key: 'nitoman', label: 'Nitòman' },
+  { key: 'super',   label: 'Super Nitòman' },
+] as const;
+
+type NitomanVariant = 'all' | 'nitoman' | 'super';
+
+interface StatsHeroProps {
+  type: AccreditationType;
+  rows: Accreditation[];
+  codesAvailable: number;
+  variant: NitomanVariant;
+  onVariantChange: (v: NitomanVariant) => void;
+}
+
+function StatsHero({ type, rows, codesAvailable, variant, onVariantChange }: StatsHeroProps) {
+  const total        = rows.length;
+  const pending      = rows.filter(r => r.status === 'pending').length;
+  const codeAssigned = rows.filter(r => r.status === 'code_assigned').length;
+  const sent         = rows.filter(r => r.status === 'email_sent').length;
+  const superCount   = rows.filter(r => r.variant === 'super').length;
+  const stdCount     = rows.filter(r => r.variant === 'nitoman').length;
+  const low          = codesAvailable < pending + codeAssigned + 3;
+  const isNitoman    = type === 'nitoman';
+  const def          = TYPE_DEFS[type];
+  const typeColor    = TYPE_COLORS[type];
+
+  const flow = [
+    { n: total,        label: 'Sol·licituds',  hint: 'Rebudes en total',                  tone: 'mute' },
+    { n: pending,      label: 'Esperant codi', hint: 'Encara sense codi assignat',         tone: 'warn' },
+    { n: codeAssigned, label: 'Per enviar',    hint: 'Codi assignat, falta enviar email',  tone: 'info' },
+    { n: sent,         label: 'Email enviat',  hint: 'Tot completat',                      tone: 'ok'   },
+  ] as const;
+
+  return (
+    <section className="hero">
+      <div className="hero-head">
+        <div className="hero-eyebrow">
+          <span className="eyebrow-marker" style={{ background: typeColor }} />
+          Espai independent · {def.sub}
+        </div>
+        <h1 className="hero-title">{def.label}</h1>
+        <p className="hero-lede">
+          Gestiona les sol·licituds, assigna codis i envia confirmacions per la secció{' '}
+          <em>{def.label}</em> del festival.
+        </p>
+
+        {isNitoman && (
+          <div className="variant-switch" role="tablist" aria-label="Variant">
+            {NITOMAN_VARIANTS.map(v => (
+              <button
+                key={v.key}
+                role="tab"
+                aria-selected={variant === v.key}
+                className={`vs-btn ${variant === v.key ? 'is-on' : ''}`}
+                onClick={() => onVariantChange(v.key as NitomanVariant)}
+              >
+                {v.label}
+                <span className="vs-n">
+                  {v.key === 'all' ? total : v.key === 'super' ? superCount : stdCount}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flow-strip" role="list" aria-label="Estat del pipeline">
+        {flow.map((s, i) => (
+          <div key={s.label} style={{ display: 'contents' }}>
+            <div className={`flow-step tone-${s.tone}`} role="listitem">
+              <div className="flow-n">{s.n}</div>
+              <div className="flow-l">{s.label}</div>
+              <div className="flow-h">{s.hint}</div>
+            </div>
+            {i < flow.length - 1 && (
+              <div className="flow-arrow" aria-hidden="true">→</div>
+            )}
+          </div>
+        ))}
+        <div className={`flow-aside ${low ? 'tone-alert' : 'tone-mute'}`}>
+          <div className="flow-n">{codesAvailable}</div>
+          <div className="flow-l">Codis lliures{low ? ' · baix' : ''}</div>
+          <div className="flow-h">Pool disponible</div>
+        </div>
+      </div>
+
+      {low && (
+        <div className="alert">
+          <span className="alert-bullet">⚠</span>
+          <span>
+            <strong>Pool de codis baix</strong> — quedaran insuficients per cobrir les
+            acreditacions pendents.{' '}
+            <Link to={`/${type}/codes`} className="link">Afegir codis</Link>
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function TypeDashboard() {
   const { type } = useParams<{ type: AccreditationType }>();
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [variant, setVariant] = useState<NitomanVariant>('all');
 
-  const { data: accreditations = [], isLoading: accreditationsLoading } = useQuery({
+  const { data: accreditations = [], isLoading } = useQuery({
     queryKey: ['accreditations', type],
     queryFn: () => fetchAccreditations(type),
     refetchInterval: 30000,
@@ -31,104 +136,25 @@ export default function TypeDashboard() {
     enabled: !!type,
   });
 
-  const pendingCount = accreditations.filter(a => a.status === 'pending').length;
-  const codeAssignedCount = accreditations.filter(a => a.status === 'code_assigned').length;
-
-  const downloadCSV = () => {
-    const headers = ['ID', 'Comanda', 'Nom', 'Email', 'Codi', 'Estat', 'Data creació', 'Email enviat'];
-    const rows = accreditations.map(a => [
-      a.id,
-      a.order_id,
-      a.customer_name,
-      a.customer_email,
-      a.code || '',
-      a.status,
-      a.created_at,
-      a.email_sent_at || ''
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `acreditacions_${type}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  };
-
   if (!type) return null;
+
+  const codesAvailable = codesData?.count ?? 0;
 
   return (
     <div>
-      {/* Stats bar - responsive grid */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-4 lg:mb-6">
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-6 text-sm">
-          <div>
-            <span className="text-gray-500">Total:</span>{' '}
-            <span className="font-medium">{accreditations.length}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Pendents:</span>{' '}
-            <span className="font-medium text-amber-600">{pendingCount}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Per enviar:</span>{' '}
-            <span className="font-medium text-blue-600">{codeAssignedCount}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Codis:</span>{' '}
-            <span className="font-medium text-green-600">{codesData?.count ?? 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Header - responsive layout */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">
-          Acreditacions {TYPE_DISPLAY_NAMES[type]}
-        </h2>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* View toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-1 text-sm rounded ${
-                viewMode === 'cards' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
-              }`}
-            >
-              Targetes
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-1 text-sm rounded ${
-                viewMode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
-              }`}
-            >
-              Llista
-            </button>
-          </div>
-
-          {/* CSV Download - hidden on very small screens */}
-          <button
-            onClick={downloadCSV}
-            disabled={accreditations.length === 0}
-            className="hidden sm:block px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
-          >
-            CSV
-          </button>
-
-          <TestAccreditationForm type={type} />
-        </div>
-      </div>
+      <StatsHero
+        type={type}
+        rows={accreditations}
+        codesAvailable={codesAvailable}
+        variant={variant}
+        onVariantChange={setVariant}
+      />
 
       <AccreditationList
         accreditations={accreditations}
-        isLoading={accreditationsLoading}
-        viewMode={viewMode}
+        isLoading={isLoading}
         type={type}
+        variant={variant}
       />
     </div>
   );

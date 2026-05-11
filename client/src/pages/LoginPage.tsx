@@ -14,80 +14,87 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
       await login(username, password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Error d\'autenticació');
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  if (isAuthenticated) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Asian Summer Film Festival</h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">Sistema d'Acreditacions</p>
+    <div className="login-screen">
+      <div className="login-card">
+        {/* Brand */}
+        <div className="login-brand">
+          <div className="login-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 44 44" width="48" height="48">
+              <circle cx="22" cy="22" r="21" fill="currentColor"/>
+              <path d="M28 12 a14 14 0 1 0 0 20 a11 11 0 1 1 0 -20 z" fill="var(--paper)"/>
+              <circle cx="30" cy="16" r="1.6" fill="var(--paper)"/>
+              <circle cx="33" cy="22" r="1.2" fill="var(--paper)"/>
+              <circle cx="30" cy="28" r="1.6" fill="var(--paper)"/>
+            </svg>
+          </div>
+          <div>
+            <div className="login-title">FesNits</div>
+            <div className="login-sub">Sistema d'Acreditacions · 23a edició</div>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-center">Iniciar Sessió</h2>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="login-form">
+          {error && (
+            <div className="login-error">{error}</div>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                Usuari
-              </label>
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={isLoading}
-                autoComplete="username"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Contrasenya
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={isLoading}
-                autoComplete="current-password"
-              />
-            </div>
-
-            <button
-              type="submit"
+          <div className="form-field">
+            <label htmlFor="username" className="form-label">Usuari</label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              className="form-input"
+              required
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Entrant...' : 'Entrar'}
-            </button>
-          </form>
+              autoComplete="username"
+              autoFocus
+            />
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="password" className="form-label">Contrasenya</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="form-input"
+              required
+              disabled={isLoading}
+              autoComplete="current-password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="primary-btn login-btn"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Entrant…' : 'Entrar'}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div style={{ marginTop: '28px', textAlign: 'center' }}>
+          <span style={{ fontSize: '11px', color: 'var(--ink-30)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            14 — 19 Juliol 2026 · Vic
+          </span>
         </div>
       </div>
     </div>

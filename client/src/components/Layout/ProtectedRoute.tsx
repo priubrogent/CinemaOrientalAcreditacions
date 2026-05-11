@@ -14,8 +14,8 @@ export default function ProtectedRoute({ children, requireAdmin, requireType }: 
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-gray-500">Carregant...</div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)', color: 'var(--ink-50)', fontSize: '14px' }}>
+        Carregant…
       </div>
     );
   }
