@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Accreditation, AccreditationType } from '../types';
-import { assignCode, sendEmail, deleteAccreditation } from '../api/accreditations';
+import { assignCode, sendEmail, deleteAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
 
 type ViewMode = 'list' | 'cards';
 type FilterKey = 'all' | 'pending' | 'code_assigned' | 'email_sent';
@@ -45,9 +45,26 @@ function RowDetail({
   onDelete: () => void;
   isSending: boolean;
 }) {
-  const TYPE_LABELS: Record<AccreditationType, string> = {
-    premsa: 'Premsa', professional: 'Professional', nitoman: 'Nitòman',
-  };
+  const [mailPreview, setMailPreview] = useState<{ subject: string; body: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTemplates(type).then(templates => {
+      if (cancelled || templates.length === 0) return;
+      const template = templates[0];
+      return previewTemplate(template.id, {
+        name: row.customer_name,
+        email: row.customer_email,
+        code: row.code ?? '',
+        order_id: row.order_id,
+      });
+    }).then(preview => {
+      if (cancelled || !preview) return;
+      setMailPreview(preview);
+    }).catch(() => {/* silently fall back to nothing */});
+    return () => { cancelled = true; };
+  }, [type, row.customer_name, row.customer_email, row.code, row.order_id]);
+
   return (
     <div className="detail-grid">
       <div className="detail-col">
@@ -101,15 +118,12 @@ function RowDetail({
           <span>{row.customer_email}</span>
         </div>
         <div className="mail-subject">
-          La teva acreditació de {TYPE_LABELS[type]} — Festival Nits
+          {mailPreview ? mailPreview.subject : '…'}
         </div>
-        <div className="mail-body">
-          <p>Hola {row.customer_name.split(' ')[0]},</p>
-          <p>Gràcies per acreditar-te al festival. Aquí tens el teu codi:</p>
-          <div className="mail-code">{row.code || 'XXX-26-000'}</div>
-          <p>Presenta'l a l'entrada del recinte (Bassa dels Hermanos, Vic) per recollir la teva acreditació física.</p>
-          <p>Ens veiem al juliol.<br/>— L'equip de Nits</p>
-        </div>
+        {mailPreview
+          ? <div className="mail-body" dangerouslySetInnerHTML={{ __html: mailPreview.body }} />
+          : <div className="mail-body"><p style={{ color: 'var(--ink-50)' }}>Carregant plantilla…</p></div>
+        }
         <div className="detail-actions">
           {row.status === 'code_assigned' && (
             <button className="primary-btn" onClick={onSend} disabled={isSending}>
