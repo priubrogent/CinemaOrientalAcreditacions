@@ -32,13 +32,7 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="login-brand">
           <div className="login-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 44 44" width="48" height="48">
-              <circle cx="22" cy="22" r="21" fill="currentColor"/>
-              <path d="M28 12 a14 14 0 1 0 0 20 a11 11 0 1 1 0 -20 z" fill="var(--paper)"/>
-              <circle cx="30" cy="16" r="1.6" fill="var(--paper)"/>
-              <circle cx="33" cy="22" r="1.2" fill="var(--paper)"/>
-              <circle cx="30" cy="28" r="1.6" fill="var(--paper)"/>
-            </svg>
+            <img src="/LogoNits-positiu.png" alt="FesNits" width="48" height="48" style={{ objectFit: 'contain' }} />
           </div>
           <div>
             <div className="login-title">FesNits</div>
