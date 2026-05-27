@@ -12,6 +12,9 @@ import CasalsForm from './pages/CasalsForm';
 import CasalsAdmin from './pages/CasalsAdmin';
 import type { AccreditationType } from './types';
 
+// casals.* domains → inscription form only, no admin
+const isCasalsDomain = window.location.hostname.startsWith('casals.');
+
 function typeToPath(type: AccreditationType): string {
   if (type === 'casals') return '/admin/casals';
   return `/${type}`;
@@ -29,13 +32,27 @@ function RedirectToFirstType() {
   }
 
   if (accessibleTypes.length === 0) {
-    return <Navigate to="/casals" replace />;
+    return <Navigate to="/acces" replace />;
   }
 
   return <Navigate to={typeToPath(accessibleTypes[0])} replace />;
 }
 
-function App() {
+// ── Casals-only app (casals.* domain) ───────────────────────────────────────
+function CasalsApp() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<CasalsForm />} />
+        <Route path="/casals" element={<CasalsForm />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+// ── Full admin app (acreditacions.* and *.railway.app) ──────────────────────
+function AdminApp() {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -43,7 +60,6 @@ function App() {
           {/* Public routes */}
           <Route path="/acces" element={<LoginPage />} />
           <Route path="/casals" element={<CasalsForm />} />
-          {/* Redirect old /login to /casals so staff bookmarks still work from outside */}
           <Route path="/login" element={<Navigate to="/acces" replace />} />
 
           {/* Protected routes with layout */}
@@ -54,65 +70,17 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Redirect root to first accessible type */}
             <Route path="/" element={<RedirectToFirstType />} />
 
-            {/* Type-specific routes */}
-            <Route
-              path="/:type"
-              element={
-                <ProtectedRoute requireType>
-                  <TypeDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/:type/codes"
-              element={
-                <ProtectedRoute requireType>
-                  <CodePoolManager />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/:type/templates"
-              element={
-                <ProtectedRoute requireType>
-                  <EmailTemplateEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/:type/settings"
-              element={
-                <ProtectedRoute requireType>
-                  <TypeSettings />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/:type" element={<ProtectedRoute requireType><TypeDashboard /></ProtectedRoute>} />
+            <Route path="/:type/codes" element={<ProtectedRoute requireType><CodePoolManager /></ProtectedRoute>} />
+            <Route path="/:type/templates" element={<ProtectedRoute requireType><EmailTemplateEditor /></ProtectedRoute>} />
+            <Route path="/:type/settings" element={<ProtectedRoute requireType><TypeSettings /></ProtectedRoute>} />
 
-            {/* Casals — accessible to users with casals type permission */}
-            <Route
-              path="/admin/casals"
-              element={
-                <ProtectedRoute requireAccess="casals">
-                  <CasalsAdmin />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Admin-only routes */}
-            <Route
-              path="/admin/users"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/admin/casals" element={<ProtectedRoute requireAccess="casals"><CasalsAdmin /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute requireAdmin><UserManagement /></ProtectedRoute>} />
           </Route>
 
-          {/* Catch-all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
@@ -120,4 +88,6 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return isCasalsDomain ? <CasalsApp /> : <AdminApp />;
+}
