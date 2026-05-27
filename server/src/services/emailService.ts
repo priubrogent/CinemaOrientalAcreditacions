@@ -77,3 +77,109 @@ export async function sendAccreditationEmail(
 export async function verifyConnection(): Promise<boolean> {
   return !!process.env.RESEND_API_KEY;
 }
+
+export interface CasalInscriptionData {
+  id: number;
+  nom_casal: string;
+  dates: string[];
+  nombre_nens: number;
+  nombre_monitors: number;
+  email: string;
+  telefon: string;
+  comentaris: string | null;
+}
+
+export async function sendCasalAdminNotification(
+  casal: CasalInscriptionData
+): Promise<{ success: boolean; error?: string }> {
+  const from = process.env.EMAIL_FROM || 'NITS Festival <onboarding@resend.dev>';
+  const to = process.env.ADMIN_EMAIL || 'admin@asff.cat';
+
+  const datesText = casal.dates.join(', ');
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>
+body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+.container { max-width: 600px; margin: 0 auto; padding: 20px; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+td:first-child { font-weight: bold; color: #555; width: 40%; }
+</style></head>
+<body>
+<div class="container">
+  <h2>Nova inscripció de Casals</h2>
+  <table>
+    <tr><td>Nom del casal</td><td>${casal.nom_casal}</td></tr>
+    <tr><td>Dates sol·licitades</td><td>${datesText}</td></tr>
+    <tr><td>Nombre de nens</td><td>${casal.nombre_nens}</td></tr>
+    <tr><td>Nombre de monitors</td><td>${casal.nombre_monitors}</td></tr>
+    <tr><td>Total persones</td><td>${casal.nombre_nens + casal.nombre_monitors}</td></tr>
+    <tr><td>Email de contacte</td><td>${casal.email}</td></tr>
+    <tr><td>Número de contacte</td><td>${casal.telefon}</td></tr>
+    <tr><td>Comentaris</td><td>${casal.comentaris || '—'}</td></tr>
+  </table>
+</div>
+</body>
+</html>`;
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to,
+      subject: `Nova inscripció de casals: ${casal.nom_casal}`,
+      html,
+    });
+    if (result.error) {
+      console.error('Resend error (casal admin):', result.error);
+      return { success: false, error: result.error.message };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Casal admin notification error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function sendCasalConfirmation(
+  casal: CasalInscriptionData
+): Promise<{ success: boolean; error?: string }> {
+  const from = process.env.EMAIL_FROM || 'NITS Festival <onboarding@resend.dev>';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>
+body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+.container { max-width: 600px; margin: 0 auto; padding: 20px; }
+.highlight { background: #f5f1e8; border-left: 4px solid #c8201c; padding: 12px 16px; margin: 16px 0; }
+</style></head>
+<body>
+<div class="container">
+  <h2>Inscripció rebuda — FesNits Casals</h2>
+  <p>Hola,</p>
+  <p>Hem rebut correctament la inscripció del casal <strong>${casal.nom_casal}</strong> per al FesNits 2026.</p>
+  <div class="highlight">
+    <p>Ens posarem en contacte amb vosaltres aviat per confirmar els detalls.</p>
+  </div>
+  <p>Gràcies per l'interès!</p>
+  <p>L'equip de FesNits</p>
+</div>
+</body>
+</html>`;
+
+  try {
+    const result = await resend.emails.send({
+      from,
+      to: casal.email,
+      subject: 'Inscripció rebuda — FesNits Casals',
+      html,
+    });
+    if (result.error) {
+      console.error('Resend error (casal confirmation):', result.error);
+      return { success: false, error: result.error.message };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Casal confirmation error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}

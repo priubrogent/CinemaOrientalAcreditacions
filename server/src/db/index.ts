@@ -186,4 +186,56 @@ export const templates = {
   }
 };
 
+// Casals Inscriptions
+export interface CasalInscriptionRow {
+  id: number;
+  nom_casal: string;
+  dates: string; // JSON array string
+  nombre_nens: number;
+  nombre_monitors: number;
+  email: string;
+  telefon: string;
+  comentaris: string | null;
+  validated: number;
+  validated_date: string | null;
+  created_at: string;
+}
+
+export const casalsInscriptions = {
+  getAll: (): CasalInscriptionRow[] => {
+    return db.prepare('SELECT * FROM casals_inscriptions ORDER BY created_at DESC').all() as CasalInscriptionRow[];
+  },
+
+  create: (data: {
+    nom_casal: string;
+    dates: string[];
+    nombre_nens: number;
+    nombre_monitors: number;
+    email: string;
+    telefon: string;
+    comentaris?: string;
+  }): CasalInscriptionRow => {
+    const result = db.prepare(`
+      INSERT INTO casals_inscriptions (nom_casal, dates, nombre_nens, nombre_monitors, email, telefon, comentaris)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.nom_casal,
+      JSON.stringify(data.dates),
+      data.nombre_nens,
+      data.nombre_monitors,
+      data.email,
+      data.telefon,
+      data.comentaris || null
+    );
+    return db.prepare('SELECT * FROM casals_inscriptions WHERE id = ?').get(result.lastInsertRowid) as CasalInscriptionRow;
+  },
+
+  validate: (id: number, date: string): CasalInscriptionRow | undefined => {
+    db.prepare(`
+      UPDATE casals_inscriptions SET validated = 1, validated_date = ? WHERE id = ?
+    `).run(date, id);
+    return db.prepare('SELECT * FROM casals_inscriptions WHERE id = ?').get(id) as CasalInscriptionRow | undefined;
+  },
+};
+
 export default db;

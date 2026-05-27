@@ -13,6 +13,7 @@ import codesRouter from './routes/codes.js';
 import templatesRouter from './routes/templates.js';
 import settingsRouter from './routes/settings.js';
 import sheetsRouter from './routes/sheets.js';
+import casalsRouter from './routes/casals.js';
 
 // Initialize database
 import './db/index.js';
@@ -43,6 +44,9 @@ app.use('/api/codes', requireAuth, codesRouter);
 app.use('/api/templates', requireAuth, templatesRouter);
 app.use('/api/settings', requireAuth, settingsRouter);
 app.use('/api/sheets', requireAuth, sheetsRouter);
+
+// Casals route — POST is public, GET/PATCH are guarded inside the router
+app.use('/api/casals', casalsRouter);
 
 // Admin-only routes
 app.use('/api/users', requireAuth, requireAdmin, usersRouter);

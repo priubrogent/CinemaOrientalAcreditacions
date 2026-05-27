@@ -8,6 +8,8 @@ import CodePoolManager from './components/CodePoolManager';
 import EmailTemplateEditor from './components/EmailTemplateEditor';
 import TypeSettings from './components/TypeSettings';
 import UserManagement from './components/UserManagement';
+import CasalsForm from './pages/CasalsForm';
+import CasalsAdmin from './pages/CasalsAdmin';
 
 function RedirectToFirstType() {
   const { accessibleTypes, isLoading } = useAuth();
@@ -34,6 +36,7 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/casals" element={<CasalsForm />} />
 
           {/* Protected routes with layout */}
           <Route
@@ -86,6 +89,14 @@ function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/casals"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CasalsAdmin />
                 </ProtectedRoute>
               }
             />

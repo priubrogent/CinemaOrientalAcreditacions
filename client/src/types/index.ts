@@ -49,3 +49,17 @@ export interface TypeSettings {
   auto_send_emails: boolean;
   display_name: string;
 }
+
+export interface CasalInscription {
+  id: number;
+  nom_casal: string;
+  dates: string[];
+  nombre_nens: number;
+  nombre_monitors: number;
+  email: string;
+  telefon: string;
+  comentaris: string | null;
+  validated: boolean;
+  validated_date: string | null;
+  created_at: string;
+}

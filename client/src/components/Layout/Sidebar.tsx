@@ -101,6 +101,12 @@ export default function Sidebar() {
             >
               Activitat global
             </NavLink>
+            <NavLink
+              to="/admin/casals"
+              className={({ isActive }) => `nav-child ${isActive ? 'is-active' : ''}`}
+            >
+              Casals
+            </NavLink>
           </div>
         )}
       </nav>

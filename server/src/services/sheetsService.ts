@@ -176,3 +176,79 @@ export async function updateRowInGoogleSheets(accreditation: Accreditation): Pro
 export async function isConfigured(): Promise<boolean> {
   return !!SPREADSHEET_ID && !!getCredentials();
 }
+
+const CASALS_SHEET_NAME = 'Casals';
+
+export interface CasalSheetRow {
+  id: number;
+  nom_casal: string;
+  dates: string[];
+  nombre_nens: number;
+  nombre_monitors: number;
+  email: string;
+  telefon: string;
+  comentaris: string | null;
+  validated: number;
+  validated_date: string | null;
+  created_at: string;
+}
+
+export async function appendCasalToSheets(casal: CasalSheetRow): Promise<{ success: boolean; error?: string }> {
+  if (!SPREADSHEET_ID) {
+    return { success: false, error: 'Google Sheets ID not configured' };
+  }
+
+  try {
+    const authClient = await getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient as any });
+
+    const row = [
+      casal.id,
+      casal.nom_casal,
+      casal.dates.join(', '),
+      casal.nombre_nens,
+      casal.nombre_monitors,
+      casal.nombre_nens + casal.nombre_monitors,
+      casal.email,
+      casal.telefon,
+      casal.comentaris || '',
+      casal.validated ? 'Sí' : 'No',
+      casal.validated_date || '',
+      casal.created_at,
+    ];
+
+    // Ensure header row exists by trying to read first
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${CASALS_SHEET_NAME}!A1:A1`,
+    }).catch(() => null);
+
+    if (!existing?.data?.values?.length) {
+      // Write header first
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${CASALS_SHEET_NAME}!A1`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [['ID', 'Nom del Casal', 'Dates', 'Nens', 'Monitors', 'Total', 'Email', 'Telèfon', 'Comentaris', 'Validat', 'Data Validada', 'Data Inscripció']],
+        },
+      });
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${CASALS_SHEET_NAME}!A:L`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    });
+
+    console.log(`Appended casal ${casal.id} to Google Sheets (Casals tab)`);
+    return { success: true };
+  } catch (error) {
+    console.error('Google Sheets casal append error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error appending casal to Google Sheets',
+    };
+  }
+}

@@ -71,6 +71,20 @@ db.exec(`
     auto_send_emails INTEGER DEFAULT 0,
     display_name TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS casals_inscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom_casal TEXT NOT NULL,
+    dates TEXT NOT NULL,
+    nombre_nens INTEGER NOT NULL,
+    nombre_monitors INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    telefon TEXT NOT NULL,
+    comentaris TEXT,
+    validated INTEGER DEFAULT 0,
+    validated_date TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Drop old settings table if exists (migration)
