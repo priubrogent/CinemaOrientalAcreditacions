@@ -90,10 +90,15 @@ export interface CasalInscriptionData {
 }
 
 export async function sendCasalAdminNotification(
-  casal: CasalInscriptionData
+  casal: CasalInscriptionData,
+  toEmails: string[]
 ): Promise<{ success: boolean; error?: string }> {
+  if (toEmails.length === 0) {
+    console.warn('sendCasalAdminNotification: no recipients — assign users to the casals type in User Management');
+    return { success: true };
+  }
   const from = process.env.EMAIL_FROM || 'NITS Festival <onboarding@resend.dev>';
-  const to = process.env.ADMIN_EMAIL || 'admin@asff.cat';
+  const to = toEmails;
 
   const datesText = casal.dates.join(', ');
   const html = `<!DOCTYPE html>

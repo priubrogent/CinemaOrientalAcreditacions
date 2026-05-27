@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import type { AuthRequest } from '../middleware/auth.js';
-import { casalsInscriptions } from '../db/index.js';
+import { casalsInscriptions, users } from '../db/index.js';
 import { sendCasalAdminNotification, sendCasalConfirmation } from '../services/emailService.js';
 import { appendCasalToSheets } from '../services/sheetsService.js';
 
@@ -50,8 +50,9 @@ router.post('/', async (req, res) => {
     };
 
     // Fire emails and sheets append in parallel (non-blocking for response)
+    const adminEmails = users.getCasalsAdminEmails();
     Promise.all([
-      sendCasalAdminNotification(casalData),
+      sendCasalAdminNotification(casalData, adminEmails),
       sendCasalConfirmation(casalData),
       appendCasalToSheets({
         ...casal,

@@ -132,7 +132,16 @@ export const users = {
   getEmailById: (userId: number): string | undefined => {
     const result = db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as { email: string } | undefined;
     return result?.email;
-  }
+  },
+
+  getCasalsAdminEmails: (): string[] => {
+    const rows = db.prepare(`
+      SELECT u.email FROM users u
+      JOIN user_permissions up ON u.id = up.user_id
+      WHERE up.type = 'casals' AND u.is_active = 1
+    `).all() as { email: string }[];
+    return rows.map(r => r.email);
+  },
 };
 
 // Email Templates

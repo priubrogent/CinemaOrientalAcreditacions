@@ -101,6 +101,12 @@ try {
   // Column already exists, ignore
 }
 
+// Add casals type setting if it doesn't exist (migration)
+const casalsTypeCount = db.prepare("SELECT COUNT(*) as count FROM type_settings WHERE type = 'casals'").get() as { count: number };
+if (casalsTypeCount.count === 0) {
+  db.prepare("INSERT INTO type_settings (type, auto_assign_codes, auto_send_emails, display_name) VALUES ('casals', 0, 0, 'Casals')").run();
+}
+
 // Insert default type settings if none exist
 const typeSettingsCount = db.prepare('SELECT COUNT(*) as count FROM type_settings').get() as { count: number };
 if (typeSettingsCount.count === 0) {
