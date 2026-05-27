@@ -910,6 +910,103 @@ input, textarea { font: inherit; color: inherit; }
 .casals-btn-validate:hover { opacity: 0.85; }
 .casals-btn-validate:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Casals row actions ───────────────────────────────────────────────────── */
+.casal-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.casal-action-btn {
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  background: none;
+  transition: opacity 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.casal-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.casal-action-neutral { color: var(--ink-70); }
+.casal-action-neutral:hover { background: var(--paper-2); color: var(--ink); }
+
+.casal-action-warn { color: var(--c-warn, #b45309); border-color: var(--c-warn-bg, #fef3c7); background: var(--c-warn-bg, #fef9ee); }
+.casal-action-warn:hover { opacity: 0.8; }
+
+.casal-action-danger { color: var(--accent); border-color: var(--accent-20); }
+.casal-action-danger:hover { background: var(--accent-08); }
+
+.casal-confirm-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* ── Casals edit modal ────────────────────────────────────────────────────── */
+.casal-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.casal-modal {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px 28px 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+.casal-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.casal-modal-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.casal-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.casal-btn-secondary {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-70);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.casal-btn-secondary:hover { background: var(--paper-2); }
+.casal-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
 @media (max-width: 680px) {
   .casals-page { padding: 0 0 48px; align-items: flex-start; }
   .casals-card {

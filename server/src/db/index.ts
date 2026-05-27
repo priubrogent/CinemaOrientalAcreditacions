@@ -245,6 +245,35 @@ export const casalsInscriptions = {
     `).run(date, id);
     return db.prepare('SELECT * FROM casals_inscriptions WHERE id = ?').get(id) as CasalInscriptionRow | undefined;
   },
+
+  unvalidate: (id: number): CasalInscriptionRow | undefined => {
+    db.prepare(`
+      UPDATE casals_inscriptions SET validated = 0, validated_date = NULL WHERE id = ?
+    `).run(id);
+    return db.prepare('SELECT * FROM casals_inscriptions WHERE id = ?').get(id) as CasalInscriptionRow | undefined;
+  },
+
+  update: (id: number, data: {
+    nom_casal: string;
+    dates: string[];
+    nombre_nens: number;
+    nombre_monitors: number;
+    email: string;
+    telefon: string;
+    comentaris?: string;
+  }): CasalInscriptionRow | undefined => {
+    db.prepare(`
+      UPDATE casals_inscriptions
+      SET nom_casal = ?, dates = ?, nombre_nens = ?, nombre_monitors = ?, email = ?, telefon = ?, comentaris = ?
+      WHERE id = ?
+    `).run(data.nom_casal, JSON.stringify(data.dates), data.nombre_nens, data.nombre_monitors, data.email, data.telefon, data.comentaris || null, id);
+    return db.prepare('SELECT * FROM casals_inscriptions WHERE id = ?').get(id) as CasalInscriptionRow | undefined;
+  },
+
+  delete: (id: number): boolean => {
+    const result = db.prepare('DELETE FROM casals_inscriptions WHERE id = ?').run(id);
+    return result.changes > 0;
+  },
 };
 
 export default db;

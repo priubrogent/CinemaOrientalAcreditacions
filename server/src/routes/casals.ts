@@ -111,4 +111,66 @@ router.patch('/:id/validate', requireAuth, requireTypeAccess('casals'), (req: Au
   }
 });
 
+// PATCH /api/casals/:id/unvalidate — casals type access required
+router.patch('/:id/unvalidate', requireAuth, requireTypeAccess('casals'), (req: AuthRequest, res) => {
+  const id = parseInt(req.params.id, 10);
+  try {
+    const updated = casalsInscriptions.unvalidate(id);
+    if (!updated) return res.status(404).json({ error: 'Inscripció no trobada' });
+    return res.json({
+      ...updated,
+      dates: JSON.parse(updated.dates) as string[],
+      validated: !!updated.validated,
+    });
+  } catch (error) {
+    console.error('Error unvalidating casal inscription:', error);
+    return res.status(500).json({ error: 'Error en desvalidar la inscripció' });
+  }
+});
+
+// PUT /api/casals/:id — casals type access required
+router.put('/:id', requireAuth, requireTypeAccess('casals'), (req: AuthRequest, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { nom_casal, dates, nombre_nens, nombre_monitors, email, telefon, comentaris } = req.body;
+
+  if (!nom_casal || !dates || !nombre_nens || !nombre_monitors || !email || !telefon) {
+    return res.status(400).json({ error: 'Falten camps obligatoris' });
+  }
+  if (!Array.isArray(dates) || dates.length === 0) {
+    return res.status(400).json({ error: 'Cal seleccionar almenys una data' });
+  }
+
+  const nens = parseInt(nombre_nens, 10);
+  const monitors = parseInt(nombre_monitors, 10);
+  if (isNaN(nens) || nens < 1 || isNaN(monitors) || monitors < 1) {
+    return res.status(400).json({ error: 'El nombre de nens i monitors ha de ser un número positiu' });
+  }
+
+  try {
+    const updated = casalsInscriptions.update(id, { nom_casal, dates, nombre_nens: nens, nombre_monitors: monitors, email, telefon, comentaris });
+    if (!updated) return res.status(404).json({ error: 'Inscripció no trobada' });
+    return res.json({
+      ...updated,
+      dates: JSON.parse(updated.dates) as string[],
+      validated: !!updated.validated,
+    });
+  } catch (error) {
+    console.error('Error updating casal inscription:', error);
+    return res.status(500).json({ error: 'Error en actualitzar la inscripció' });
+  }
+});
+
+// DELETE /api/casals/:id — casals type access required
+router.delete('/:id', requireAuth, requireTypeAccess('casals'), (req: AuthRequest, res) => {
+  const id = parseInt(req.params.id, 10);
+  try {
+    const deleted = casalsInscriptions.delete(id);
+    if (!deleted) return res.status(404).json({ error: 'Inscripció no trobada' });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting casal inscription:', error);
+    return res.status(500).json({ error: 'Error en eliminar la inscripció' });
+  }
+});
+
 export default router;
