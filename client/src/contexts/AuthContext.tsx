@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const accessibleTypes: AccreditationType[] = user
     ? user.is_admin
-      ? ['premsa', 'professional', 'nitoman']
+      ? ['premsa', 'professional', 'nitoman', 'casals']
       : user.types
     : [];
 

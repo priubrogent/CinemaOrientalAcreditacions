@@ -10,6 +10,12 @@ import TypeSettings from './components/TypeSettings';
 import UserManagement from './components/UserManagement';
 import CasalsForm from './pages/CasalsForm';
 import CasalsAdmin from './pages/CasalsAdmin';
+import type { AccreditationType } from './types';
+
+function typeToPath(type: AccreditationType): string {
+  if (type === 'casals') return '/admin/casals';
+  return `/${type}`;
+}
 
 function RedirectToFirstType() {
   const { accessibleTypes, isLoading } = useAuth();
@@ -26,7 +32,7 @@ function RedirectToFirstType() {
     return <Navigate to="/login" replace />;
   }
 
-  return <Navigate to={`/${accessibleTypes[0]}`} replace />;
+  return <Navigate to={typeToPath(accessibleTypes[0])} replace />;
 }
 
 function App() {
@@ -83,20 +89,22 @@ function App() {
               }
             />
 
-            {/* Admin routes */}
+            {/* Casals — accessible to users with casals type permission */}
+            <Route
+              path="/admin/casals"
+              element={
+                <ProtectedRoute requireAccess="casals">
+                  <CasalsAdmin />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin-only routes */}
             <Route
               path="/admin/users"
               element={
                 <ProtectedRoute requireAdmin>
                   <UserManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/casals"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <CasalsAdmin />
                 </ProtectedRoute>
               }
             />

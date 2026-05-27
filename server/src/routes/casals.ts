@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireTypeAccess } from '../middleware/auth.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { casalsInscriptions, users } from '../db/index.js';
 import { sendCasalAdminNotification, sendCasalConfirmation } from '../services/emailService.js';
@@ -69,8 +69,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/casals — admin only
-router.get('/', requireAuth, requireAdmin, (_req: AuthRequest, res) => {
+// GET /api/casals — casals type access required
+router.get('/', requireAuth, requireTypeAccess('casals'), (_req: AuthRequest, res) => {
   try {
     const inscriptions = casalsInscriptions.getAll();
     // Parse dates JSON for each row
@@ -86,8 +86,8 @@ router.get('/', requireAuth, requireAdmin, (_req: AuthRequest, res) => {
   }
 });
 
-// PATCH /api/casals/:id/validate — admin only
-router.patch('/:id/validate', requireAuth, requireAdmin, (req: AuthRequest, res) => {
+// PATCH /api/casals/:id/validate — casals type access required
+router.patch('/:id/validate', requireAuth, requireTypeAccess('casals'), (req: AuthRequest, res) => {
   const id = parseInt(req.params.id, 10);
   const { date } = req.body;
 

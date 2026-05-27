@@ -30,7 +30,7 @@ export interface EmailTemplate {
   is_active: boolean;
 }
 
-export type AccreditationType = 'premsa' | 'professional' | 'nitoman';
+export type AccreditationType = 'premsa' | 'professional' | 'nitoman' | 'casals';
 
 export interface User {
   id: number;

@@ -52,19 +52,56 @@ export default function CasalsAdmin() {
     refetchInterval: 60000,
   });
 
+  const totalNens = inscriptions.reduce((s, c) => s + c.nombre_nens, 0);
+  const totalMonitors = inscriptions.reduce((s, c) => s + c.nombre_monitors, 0);
+  const totalPersones = totalNens + totalMonitors;
+  const validats = inscriptions.filter(c => c.validated).length;
+
   return (
     <div className="main">
-      <div className="toolbar">
+      {/* Hero */}
+      <div className="hero" style={{ marginBottom: 0 }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 22, margin: 0, letterSpacing: '-0.02em' }}>
-            Casals
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--ink-50)', margin: '4px 0 0' }}>
-            Inscripcions rebudes — FesNits 2026
-          </p>
+          <div className="hero-eyebrow">
+            <span className="eyebrow-marker" />
+            Casals d'estiu · FesNits 2026
+          </div>
+          <h1 className="hero-title">Casals</h1>
+          <p className="hero-lede">Gestiona les inscripcions de casals d'estiu al festival.</p>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--ink-50)' }}>
-          {inscriptions.length} inscripció{inscriptions.length !== 1 ? 'ns' : ''}
+      </div>
+
+      {/* Stats strip */}
+      <div className="flow-strip" style={{ marginBottom: 28 }}>
+        <div className="flow-step tone-mute">
+          <div className="flow-n">{inscriptions.length}</div>
+          <div className="flow-label">INSCRIPCIONS</div>
+          <div className="flow-sub">Rebudes en total</div>
+        </div>
+        <div className="flow-step tone-warn">
+          <div className="flow-n">{inscriptions.length - validats}</div>
+          <div className="flow-label">PENDENTS</div>
+          <div className="flow-sub">Sense validar</div>
+        </div>
+        <div className="flow-step tone-ok">
+          <div className="flow-n">{validats}</div>
+          <div className="flow-label">VALIDATS</div>
+          <div className="flow-sub">Confirmats</div>
+        </div>
+        <div className="flow-step tone-info">
+          <div className="flow-n">{totalNens}</div>
+          <div className="flow-label">NENS</div>
+          <div className="flow-sub">Total inscrits</div>
+        </div>
+        <div className="flow-step tone-info">
+          <div className="flow-n">{totalMonitors}</div>
+          <div className="flow-label">MONITORS</div>
+          <div className="flow-sub">Total inscrits</div>
+        </div>
+        <div className="flow-step" style={{ borderLeftColor: 'var(--accent)', background: 'var(--accent-08)' }}>
+          <div className="flow-n" style={{ color: 'var(--accent)' }}>{totalPersones}</div>
+          <div className="flow-label">TOTAL PERSONES</div>
+          <div className="flow-sub">Nens + monitors</div>
         </div>
       </div>
 
@@ -87,7 +124,7 @@ export default function CasalsAdmin() {
       )}
 
       {!isLoading && inscriptions.length > 0 && (
-        <div style={{ overflowX: 'auto', marginTop: 8 }}>
+        <div style={{ overflowX: 'auto' }}>
           <table className="casals-admin-table">
             <thead>
               <tr>

@@ -6,9 +6,10 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   requireType?: boolean;
+  requireAccess?: AccreditationType; // check a specific type directly
 }
 
-export default function ProtectedRoute({ children, requireAdmin, requireType }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requireAdmin, requireType, requireAccess }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, user, hasTypeAccess } = useAuth();
   const { type } = useParams<{ type: AccreditationType }>();
 
@@ -29,6 +30,10 @@ export default function ProtectedRoute({ children, requireAdmin, requireType }: 
   }
 
   if (requireType && type && !hasTypeAccess(type)) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireAccess && !hasTypeAccess(requireAccess)) {
     return <Navigate to="/" replace />;
   }
 

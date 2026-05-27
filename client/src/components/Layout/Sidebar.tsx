@@ -1,4 +1,4 @@
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import type { AccreditationType } from '../../types';
 
@@ -6,12 +6,22 @@ const TYPE_DEFS: Record<AccreditationType, { label: string; sub: string }> = {
   premsa:       { label: 'Premsa',       sub: 'Mitjans i crítica' },
   professional: { label: 'Professional', sub: 'Indústria audiovisual' },
   nitoman:      { label: 'Nitòman',      sub: 'Abonats al festival' },
+  casals:       { label: 'Casals',       sub: 'Casals d\'estiu' },
 };
 
 const TYPE_COLORS: Record<AccreditationType, string> = {
   premsa:       'var(--premsa)',
   professional: 'var(--professional)',
   nitoman:      'var(--nitoman)',
+  casals:       'var(--accent)',
+};
+
+// Sub-pages per type. Casals only has one page.
+const TYPE_CHILDREN: Record<AccreditationType, [string, string, string][]> = {
+  premsa:       [['list', 'Acreditacions', '/premsa'], ['codes', 'Codis', '/premsa/codes'], ['templates', 'Plantilles', '/premsa/templates'], ['settings', 'Configuració', '/premsa/settings']],
+  professional: [['list', 'Acreditacions', '/professional'], ['codes', 'Codis', '/professional/codes'], ['templates', 'Plantilles', '/professional/templates'], ['settings', 'Configuració', '/professional/settings']],
+  nitoman:      [['list', 'Acreditacions', '/nitoman'], ['codes', 'Codis', '/nitoman/codes'], ['templates', 'Plantilles', '/nitoman/templates'], ['settings', 'Configuració', '/nitoman/settings']],
+  casals:       [['inscripcions', 'Inscripcions', '/admin/casals']],
 };
 
 interface SidebarProps {
@@ -22,9 +32,16 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, accessibleTypes } = useAuth();
   const { type: currentType } = useParams<{ type: AccreditationType }>();
+  const location = useLocation();
 
   const isAdmin = user?.is_admin;
   const isSingle = accessibleTypes.length === 1;
+
+  // Casals route is /admin/casals, not /:type, so detect it via location
+  function isTypeActive(type: AccreditationType) {
+    if (type === 'casals') return location.pathname.startsWith('/admin/casals');
+    return currentType === type;
+  }
 
   const nav = (
     <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
@@ -56,13 +73,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {accessibleTypes.map((type) => {
             const def = TYPE_DEFS[type];
-            const isActive = currentType === type;
+            const children = TYPE_CHILDREN[type];
+            const isActive = isTypeActive(type);
+            // For casals, the NavLink "to" is /admin/casals; for others /:type
+            const rootPath = type === 'casals' ? '/admin/casals' : `/${type}`;
+
             return (
               <div key={type}>
                 <NavLink
-                  to={`/${type}`}
+                  to={rootPath}
                   className={`nav-type ${isActive ? 'is-active' : ''}`}
                   onClick={onClose}
+                  end={type === 'casals'}
                 >
                   <span className="nav-type-label">
                     <span
@@ -76,16 +98,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                 {isActive && (
                   <div className="nav-children">
-                    {([
-                      ['list', 'Acreditacions', `/${type}`],
-                      ['codes', 'Codis', `/${type}/codes`],
-                      ['templates', 'Plantilles', `/${type}/templates`],
-                      ['settings', 'Configuració', `/${type}/settings`],
-                    ] as [string, string, string][]).map(([key, label, path]) => (
+                    {children.map(([key, label, path]) => (
                       <NavLink
                         key={key}
                         to={path}
-                        end={key === 'list'}
+                        end
                         className={({ isActive: a }) =>
                           `nav-child ${a ? 'is-active' : ''}`
                         }
@@ -118,13 +135,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               Activitat global
             </NavLink>
-            <NavLink
-              to="/admin/casals"
-              className={({ isActive }) => `nav-child ${isActive ? 'is-active' : ''}`}
-              onClick={onClose}
-            >
-              Casals
-            </NavLink>
           </div>
         )}
       </nav>
@@ -142,7 +152,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       {nav}
-      {/* Backdrop — mobile only, shown when sidebar is open */}
       {isOpen && (
         <div className="sidebar-backdrop" onClick={onClose} aria-hidden="true" />
       )}

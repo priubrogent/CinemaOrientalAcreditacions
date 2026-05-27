@@ -96,7 +96,7 @@ export function requireTypeAccess(type: string) {
 // Helper to get accessible types for a user
 export function getAccessibleTypes(user: AuthUser): string[] {
   if (user.is_admin) {
-    return ['premsa', 'professional', 'nitoman'];
+    return ['premsa', 'professional', 'nitoman', 'casals'];
   }
   return user.types;
 }
