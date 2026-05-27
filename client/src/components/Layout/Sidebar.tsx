@@ -14,15 +14,28 @@ const TYPE_COLORS: Record<AccreditationType, string> = {
   nitoman:      'var(--nitoman)',
 };
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, accessibleTypes } = useAuth();
   const { type: currentType } = useParams<{ type: AccreditationType }>();
 
   const isAdmin = user?.is_admin;
   const isSingle = accessibleTypes.length === 1;
 
-  return (
-    <aside className="sidebar">
+  const nav = (
+    <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
+      {/* Close button — mobile only */}
+      <button className="sidebar-close-btn" onClick={onClose} aria-label="Tancar menú">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+
       {/* Brand */}
       <div className="brand">
         <div className="brand-mark" aria-hidden="true">
@@ -49,6 +62,7 @@ export default function Sidebar() {
                 <NavLink
                   to={`/${type}`}
                   className={`nav-type ${isActive ? 'is-active' : ''}`}
+                  onClick={onClose}
                 >
                   <span className="nav-type-label">
                     <span
@@ -75,6 +89,7 @@ export default function Sidebar() {
                         className={({ isActive: a }) =>
                           `nav-child ${a ? 'is-active' : ''}`
                         }
+                        onClick={onClose}
                       >
                         {label}
                       </NavLink>
@@ -92,18 +107,21 @@ export default function Sidebar() {
             <NavLink
               to="/admin/users"
               className={({ isActive }) => `nav-child ${isActive ? 'is-active' : ''}`}
+              onClick={onClose}
             >
               Usuaris
             </NavLink>
             <NavLink
               to="/admin/activity"
               className={({ isActive }) => `nav-child ${isActive ? 'is-active' : ''}`}
+              onClick={onClose}
             >
               Activitat global
             </NavLink>
             <NavLink
               to="/admin/casals"
               className={({ isActive }) => `nav-child ${isActive ? 'is-active' : ''}`}
+              onClick={onClose}
             >
               Casals
             </NavLink>
@@ -119,5 +137,15 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {nav}
+      {/* Backdrop — mobile only, shown when sidebar is open */}
+      {isOpen && (
+        <div className="sidebar-backdrop" onClick={onClose} aria-hidden="true" />
+      )}
+    </>
   );
 }
