@@ -29,7 +29,7 @@ function RedirectToFirstType() {
   }
 
   if (accessibleTypes.length === 0) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/casals" replace />;
   }
 
   return <Navigate to={typeToPath(accessibleTypes[0])} replace />;
@@ -41,8 +41,10 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/acces" element={<LoginPage />} />
           <Route path="/casals" element={<CasalsForm />} />
+          {/* Redirect old /login to /casals so staff bookmarks still work from outside */}
+          <Route path="/login" element={<Navigate to="/acces" replace />} />
 
           {/* Protected routes with layout */}
           <Route
