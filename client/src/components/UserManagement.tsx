@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUsers, createUser, updateUser, deleteUser } from '../api/users';
 import type { User, AccreditationType } from '../types';
 
-const ALL_TYPES: AccreditationType[] = ['premsa', 'professional', 'nitoman'];
+const ALL_TYPES: AccreditationType[] = ['premsa', 'professional', 'nitoman', 'casals'];
 
 const TYPE_DISPLAY_NAMES: Record<AccreditationType, string> = {
   premsa: 'Premsa',
   professional: 'Professional',
   nitoman: 'Nitoman',
+  casals: 'Casals',
 };
 
 interface UserFormData {

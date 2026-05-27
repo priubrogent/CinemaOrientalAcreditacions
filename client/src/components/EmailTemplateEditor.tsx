@@ -8,6 +8,7 @@ const TYPE_DISPLAY_NAMES: Record<AccreditationType, string> = {
   premsa: 'Premsa',
   professional: 'Professional',
   nitoman: 'Nitoman',
+  casals: 'Casals',
 };
 
 export default function EmailTemplateEditor() {

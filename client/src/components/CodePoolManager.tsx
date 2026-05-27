@@ -5,7 +5,7 @@ import { fetchCodes, addBulkCodes } from '../api/accreditations';
 import type { AccreditationType } from '../types';
 
 const TYPE_LABELS: Record<AccreditationType, string> = {
-  premsa: 'Premsa', professional: 'Professional', nitoman: 'Nitòman',
+  premsa: 'Premsa', professional: 'Professional', nitoman: 'Nitòman', casals: 'Casals',
 };
 
 export default function CodePoolManager() {

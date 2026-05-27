@@ -9,12 +9,14 @@ const TYPE_DEFS: Record<AccreditationType, { label: string; sub: string }> = {
   premsa:       { label: 'Premsa',       sub: 'Mitjans i crítica' },
   professional: { label: 'Professional', sub: 'Indústria audiovisual' },
   nitoman:      { label: 'Nitòman',      sub: 'Abonats al festival' },
+  casals:       { label: 'Casals',       sub: 'Casals d\'estiu' },
 };
 
 const TYPE_COLORS: Record<AccreditationType, string> = {
   premsa:       'var(--premsa)',
   professional: 'var(--professional)',
   nitoman:      'var(--nitoman)',
+  casals:       'var(--accent)',
 };
 
 const NITOMAN_VARIANTS = [
