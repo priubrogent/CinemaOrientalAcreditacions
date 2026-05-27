@@ -103,21 +103,21 @@ export default function CasalsAdmin() {
             <tbody>
               {inscriptions.map((casal: CasalInscription) => (
                 <tr key={casal.id}>
-                  <td>
+                  <td data-label="Nom del casal">
                     <div style={{ fontWeight: 500, color: 'var(--ink)' }}>{casal.nom_casal}</div>
                     <div style={{ fontSize: 12, color: 'var(--ink-50)', marginTop: 2 }}>{casal.email}</div>
                   </td>
-                  <td style={{ fontSize: 12 }}>
+                  <td data-label="Dates sol·licitades" style={{ fontSize: 12 }}>
                     {casal.dates.map(d => (
                       <span key={d} style={{ display: 'block' }}>{d}</span>
                     ))}
                   </td>
-                  <td style={{ textAlign: 'center' }}>{casal.nombre_nens}</td>
-                  <td style={{ textAlign: 'center' }}>{casal.nombre_monitors}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                  <td data-label="Nens" style={{ textAlign: 'center' }}>{casal.nombre_nens}</td>
+                  <td data-label="Monitors" style={{ textAlign: 'center' }}>{casal.nombre_monitors}</td>
+                  <td data-label="Total" style={{ textAlign: 'center', fontWeight: 600 }}>
                     {casal.nombre_nens + casal.nombre_monitors}
                   </td>
-                  <td>
+                  <td data-label="Estat">
                     {casal.validated ? (
                       <span className="casals-badge casals-badge-validat">
                         Validat
@@ -128,7 +128,7 @@ export default function CasalsAdmin() {
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Acció">
                     <ValidateAction casal={casal} />
                   </td>
                 </tr>

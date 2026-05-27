@@ -839,6 +839,45 @@ input, textarea { font: inherit; color: inherit; }
 .casals-btn-validate:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 680px) {
-  .casals-card { padding: 28px 20px 36px; }
+  .casals-page { padding: 0 0 48px; align-items: flex-start; }
+  .casals-card {
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    padding: 32px 20px 40px;
+    max-width: 100%;
+  }
+  .casals-title { font-size: 22px; }
   .casals-row { grid-template-columns: 1fr; }
+  .casals-submit { width: 100%; }
+
+  /* Admin table → stacked cards on mobile */
+  .casals-admin-table thead { display: none; }
+  .casals-admin-table,
+  .casals-admin-table tbody,
+  .casals-admin-table tr,
+  .casals-admin-table td { display: block; width: 100%; }
+  .casals-admin-table tr {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+  }
+  .casals-admin-table tr:last-child td { border-bottom: none; }
+  .casals-admin-table td {
+    padding: 5px 0;
+    border-bottom: none;
+    font-size: 13px;
+    text-align: left !important;
+  }
+  .casals-admin-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-50);
+    margin-bottom: 2px;
+  }
+  .casals-validate-wrap { flex-wrap: wrap; }
 }
