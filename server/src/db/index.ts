@@ -136,9 +136,11 @@ export const users = {
 
   getCasalsAdminEmails: (): string[] => {
     const rows = db.prepare(`
-      SELECT u.email FROM users u
-      JOIN user_permissions up ON u.id = up.user_id
-      WHERE up.type = 'casals' AND u.is_active = 1
+      SELECT DISTINCT u.email FROM users u
+      WHERE u.is_active = 1 AND (
+        u.is_admin = 1
+        OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.type = 'casals')
+      )
     `).all() as { email: string }[];
     return rows.map(r => r.email);
   },
