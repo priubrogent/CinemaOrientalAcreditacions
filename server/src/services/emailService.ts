@@ -36,7 +36,7 @@ export async function sendAccreditationEmail(
     const result = await resend.emails.send({
       from,
       to: accreditation.customer_email,
-      reply_to: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
+      replyTo: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
       subject,
       html,
     });
@@ -132,7 +132,7 @@ td:first-child { font-weight: bold; color: #555; width: 40%; }
     const result = await resend.emails.send({
       from,
       to,
-      reply_to: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
+      replyTo: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
       subject: `Nova inscripció de casals: ${casal.nom_casal}`,
       html,
     });
@@ -177,7 +177,7 @@ body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     const result = await resend.emails.send({
       from,
       to: casal.email,
-      reply_to: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
+      replyTo: process.env.EMAIL_REPLY_TO || 'priubrogent@cinemaoriental.com',
       subject: 'Inscripció rebuda — FesNits Casals',
       html,
     });
