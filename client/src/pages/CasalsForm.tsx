@@ -11,7 +11,7 @@ const DATES = [
 
 export default function CasalsForm() {
   const [nomCasal, setNomCasal] = useState('');
-  const [dates, setDates] = useState<string[]>([]);
+  const [date, setDate] = useState('');
   const [nombreNens, setNombreNens] = useState('');
   const [nombreMonitors, setNombreMonitors] = useState('');
   const [email, setEmail] = useState('');
@@ -23,16 +23,10 @@ export default function CasalsForm() {
     mutationFn: submitCasalInscription,
   });
 
-  function toggleDate(value: string) {
-    setDates(prev =>
-      prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value]
-    );
-  }
-
   function validate() {
     const errs: Record<string, string> = {};
     if (!nomCasal.trim()) errs.nomCasal = 'Camp obligatori';
-    if (dates.length === 0) errs.dates = 'Selecciona almenys una data';
+    if (!date) errs.dates = 'Selecciona una data';
     if (!nombreNens || parseInt(nombreNens) < 1) errs.nombreNens = 'Ha de ser un número positiu';
     if (!nombreMonitors || parseInt(nombreMonitors) < 1) errs.nombreMonitors = 'Ha de ser un número positiu';
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Email no vàlid';
@@ -47,7 +41,7 @@ export default function CasalsForm() {
 
     mutation.mutate({
       nom_casal: nomCasal.trim(),
-      dates,
+      dates: [date],
       nombre_nens: parseInt(nombreNens),
       nombre_monitors: parseInt(nombreMonitors),
       email: email.trim(),
@@ -104,16 +98,17 @@ export default function CasalsForm() {
 
           <div className="casals-field">
             <span className="casals-label">
-              Dates disponibles <span className="casals-required" aria-hidden="true">*</span>
+              Data disponible <span className="casals-required" aria-hidden="true">*</span>
             </span>
             <div className={`casals-checkgroup${errors.dates ? ' is-invalid' : ''}`}>
               {DATES.map(({ value, label }) => (
                 <label key={value} className="casals-check-label">
                   <input
-                    type="checkbox"
+                    type="radio"
+                    name="date"
                     className="casals-checkbox"
-                    checked={dates.includes(value)}
-                    onChange={() => toggleDate(value)}
+                    checked={date === value}
+                    onChange={() => setDate(value)}
                   />
                   {label}
                 </label>

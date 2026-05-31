@@ -101,6 +101,20 @@ try {
   // Column already exists, ignore
 }
 
+// Add send_validation_email column to type_settings if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE type_settings ADD COLUMN send_validation_email INTEGER DEFAULT 0');
+} catch (e) {
+  // Column already exists, ignore
+}
+
+// Add slug column to email_templates if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE email_templates ADD COLUMN slug TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
+
 // Add casals type setting if it doesn't exist (migration)
 const casalsTypeCount = db.prepare("SELECT COUNT(*) as count FROM type_settings WHERE type = 'casals'").get() as { count: number };
 if (casalsTypeCount.count === 0) {
