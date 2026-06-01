@@ -198,9 +198,9 @@ function RowDetail({
           : <div className="mail-body"><p style={{ color: 'var(--ink-50)' }}>Carregant plantilla…</p></div>
         }
         <div className="detail-actions">
-          {row.status === 'code_assigned' && (
+          {(row.status === 'code_assigned' || row.status === 'email_sent') && (
             <button className="primary-btn" onClick={onSend} disabled={isSending}>
-              {isSending ? 'Enviant…' : 'Enviar email'}
+              {isSending ? 'Enviant…' : row.status === 'email_sent' ? 'Reenviar email' : 'Enviar email'}
             </button>
           )}
           <button className="ghost-btn" onClick={onEdit}>Editar acreditació</button>
@@ -306,7 +306,9 @@ function AccRow({
             </button>
           )}
           {row.status === 'email_sent' && (
-            <button className="row-btn row-btn-ghost">Reenviar</button>
+            <button className="row-btn row-btn-ghost" onClick={() => sendMut.mutate()} disabled={isLoading}>
+              {sendMut.isPending ? '…' : 'Reenviar'}
+            </button>
           )}
           <button className="row-btn-icon" onClick={onExpand} title="Detalls">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -425,7 +427,9 @@ function AccCard({ row, type }: { row: Accreditation; type: AccreditationType })
           </button>
         )}
         {row.status === 'email_sent' && (
-          <button className="ghost-btn">Reenviar</button>
+          <button className="ghost-btn" onClick={() => sendMut.mutate()} disabled={isLoading}>
+            {sendMut.isPending ? 'Enviant…' : 'Reenviar'}
+          </button>
         )}
         <button
           className="ghost-btn danger"
