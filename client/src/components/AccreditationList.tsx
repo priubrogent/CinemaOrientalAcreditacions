@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Accreditation, AccreditationType } from '../types';
-import { assignCode, sendEmail, deleteAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
+import { assignCode, sendEmail, deleteAccreditation, updateAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
 
 type ViewMode = 'list' | 'cards';
 type FilterKey = 'all' | 'pending' | 'code_assigned' | 'email_sent';
@@ -31,18 +31,91 @@ function StatusPill({ status }: { status: Accreditation['status'] }) {
   );
 }
 
+// ─── Edit modal ─────────────────────────────────────────────────────────────
+function EditModal({
+  row,
+  type,
+  onClose,
+  onSaved,
+}: {
+  row: Accreditation;
+  type: AccreditationType;
+  onClose: () => void;
+  onSaved: (updated: Accreditation) => void;
+}) {
+  const [name, setName] = useState(row.customer_name);
+  const [email, setEmail] = useState(row.customer_email);
+  const [outlet, setOutlet] = useState(row.outlet ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const mut = useMutation({
+    mutationFn: () => updateAccreditation(row.id, { customer_name: name, customer_email: email, outlet: outlet || undefined }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      onSaved(updated);
+      onClose();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("L'email no és vàlid");
+      return;
+    }
+    mut.mutate();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Editar acreditació</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Nom</label>
+            <input value={name} onChange={e => setName(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label>Mitjà / Empresa</label>
+            <input value={outlet} onChange={e => setOutlet(e.target.value)} />
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <div className="modal-actions">
+            <button type="button" className="ghost-btn" onClick={onClose}>Cancel·lar</button>
+            <button type="submit" className="primary-btn" disabled={mut.isPending}>
+              {mut.isPending ? 'Desant…' : 'Desar canvis'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Row detail ─────────────────────────────────────────────────────────────
 function RowDetail({
   row,
   type,
   onSend,
   onDelete,
+  onEdit,
   isSending,
 }: {
   row: Accreditation;
   type: AccreditationType;
   onSend: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   isSending: boolean;
 }) {
   const [mailPreview, setMailPreview] = useState<{ subject: string; body: string } | null>(null);
@@ -130,7 +203,7 @@ function RowDetail({
               {isSending ? 'Enviant…' : 'Enviar email'}
             </button>
           )}
-          <button className="ghost-btn">Editar plantilla</button>
+          <button className="ghost-btn" onClick={onEdit}>Editar acreditació</button>
           <button className="ghost-btn">Copiar enllaç</button>
           <button className="ghost-btn danger" onClick={onDelete}>
             Eliminar acreditació
@@ -160,6 +233,7 @@ function AccRow({
   onRefresh: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
   const assignMut = useMutation({
@@ -258,10 +332,20 @@ function AccRow({
               type={type}
               onSend={() => sendMut.mutate()}
               onDelete={() => { if (confirm('Segur que vols eliminar aquesta acreditació?')) deleteMut.mutate(); }}
+              onEdit={() => setEditing(true)}
               isSending={sendMut.isPending}
             />
           </td>
         </tr>
+      )}
+
+      {editing && (
+        <EditModal
+          row={row}
+          type={type}
+          onClose={() => setEditing(false)}
+          onSaved={() => setEditing(false)}
+        />
       )}
     </>
   );

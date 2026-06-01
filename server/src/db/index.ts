@@ -60,6 +60,18 @@ export const accreditations = {
     return accreditations.getById(id);
   },
 
+  update: (id: number, data: { customer_name?: string; customer_email?: string; outlet?: string }): Accreditation | undefined => {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (data.customer_name !== undefined) { fields.push('customer_name = ?'); values.push(data.customer_name); }
+    if (data.customer_email !== undefined) { fields.push('customer_email = ?'); values.push(data.customer_email); }
+    if (data.outlet !== undefined) { fields.push('outlet = ?'); values.push(data.outlet); }
+    if (fields.length === 0) return accreditations.getById(id);
+    values.push(id);
+    db.prepare(`UPDATE accreditations SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    return accreditations.getById(id);
+  },
+
   delete: (id: number): boolean => {
     const accred = accreditations.getById(id);
     if (accred?.code_id) {

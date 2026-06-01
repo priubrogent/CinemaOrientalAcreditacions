@@ -135,6 +135,35 @@ router.post('/:id/send-email', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Update accreditation
+router.put('/:id', (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const accreditation = accreditations.getById(id);
+
+    if (!accreditation) {
+      return res.status(404).json({ error: 'Accreditation not found' });
+    }
+
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
+    }
+
+    const { customer_name, customer_email, outlet } = req.body;
+
+    if (customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    const updated = accreditations.update(id, { customer_name, customer_email, outlet });
+    res.json({ message: 'Accreditation updated', accreditation: updated });
+  } catch (error) {
+    console.error('Error updating accreditation:', error);
+    res.status(500).json({ error: 'Failed to update accreditation' });
+  }
+});
+
 // Delete accreditation
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
