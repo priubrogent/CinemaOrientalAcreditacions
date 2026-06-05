@@ -10,10 +10,10 @@ import {
 import type { CasalInscription } from '../types';
 
 const DATES = [
-  'Dimarts 19/07',
-  'Dimecres 20/07',
-  'Dijous 21/07',
-  'Divendres 22/07',
+  'Dimarts 14/07',
+  'Dimecres 15/07',
+  'Dijous 16/07',
+  'Divendres 17/07',
 ];
 
 // ── Edit modal ──────────────────────────────────────────────────────────────

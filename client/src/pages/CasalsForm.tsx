@@ -3,10 +3,10 @@ import { useMutation } from '@tanstack/react-query';
 import { submitCasalInscription } from '../api/casals';
 
 const DATES = [
-  { value: 'Dimarts 19/07', label: 'Dimarts 19 de juliol' },
-  { value: 'Dimecres 20/07', label: 'Dimecres 20 de juliol' },
-  { value: 'Dijous 21/07', label: 'Dijous 21 de juliol' },
-  { value: 'Divendres 22/07', label: 'Divendres 22 de juliol' },
+  { value: 'Dimarts 14/07', label: 'Dimarts 14 de juliol' },
+  { value: 'Dimecres 15/07', label: 'Dimecres 15 de juliol' },
+  { value: 'Dijous 16/07', label: 'Dijous 16 de juliol' },
+  { value: 'Divendres 17/07', label: 'Divendres 17 de juliol' },
 ];
 
 export default function CasalsForm() {

@@ -115,6 +115,18 @@ try {
   // Column already exists, ignore
 }
 
+// Fix wrong dates in casals_inscriptions (19/07→14/07, 20/07→15/07, 21/07→16/07, 22/07→17/07)
+try {
+  db.exec(`
+    UPDATE casals_inscriptions SET dates = REPLACE(dates, 'Dimarts 19/07', 'Dimarts 14/07') WHERE dates LIKE '%Dimarts 19/07%';
+    UPDATE casals_inscriptions SET dates = REPLACE(dates, 'Dimecres 20/07', 'Dimecres 15/07') WHERE dates LIKE '%Dimecres 20/07%';
+    UPDATE casals_inscriptions SET dates = REPLACE(dates, 'Dijous 21/07', 'Dijous 16/07') WHERE dates LIKE '%Dijous 21/07%';
+    UPDATE casals_inscriptions SET dates = REPLACE(dates, 'Divendres 22/07', 'Divendres 17/07') WHERE dates LIKE '%Divendres 22/07%';
+  `);
+} catch (e) {
+  // Table may not exist yet, ignore
+}
+
 // Add casals type setting if it doesn't exist (migration)
 const casalsTypeCount = db.prepare("SELECT COUNT(*) as count FROM type_settings WHERE type = 'casals'").get() as { count: number };
 if (casalsTypeCount.count === 0) {

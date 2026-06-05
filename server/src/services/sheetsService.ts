@@ -217,14 +217,20 @@ export async function appendCasalToSheets(casal: CasalSheetRow): Promise<{ succe
       casal.created_at,
     ];
 
-    // Ensure header row exists by trying to read first
-    const existing = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${CASALS_SHEET_NAME}!A1:A1`,
-    }).catch(() => null);
+    // Ensure the Casals sheet tab exists
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheetExists = spreadsheet.data.sheets?.some(
+      s => s.properties?.title === CASALS_SHEET_NAME
+    );
 
-    if (!existing?.data?.values?.length) {
-      // Write header first
+    if (!sheetExists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: CASALS_SHEET_NAME } } }],
+        },
+      });
+      // Write header row into the newly created sheet
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `${CASALS_SHEET_NAME}!A1`,
