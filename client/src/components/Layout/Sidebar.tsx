@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchCodes } from '../../api/accreditations';
 import type { AccreditationType } from '../../types';
 
 const TYPE_DEFS: Record<AccreditationType, { label: string; sub: string }> = {
@@ -36,6 +38,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const isAdmin = user?.is_admin;
   const isSingle = accessibleTypes.length === 1;
+  const [downloadingType, setDownloadingType] = useState<string | null>(null);
+
+  async function downloadCodes(type: string) {
+    setDownloadingType(type);
+    try {
+      const data = await fetchCodes(type);
+      const headers = ['Codi', 'Estat', 'Assignat el'];
+      const rows = data.map(c => [c.code, c.is_used ? 'Usat' : 'Disponible', c.assigned_at ?? '']);
+      const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `codis_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } finally {
+      setDownloadingType(null);
+    }
+  }
 
   // Casals route is /admin/casals, not /:type, so detect it via location
   function isTypeActive(type: AccreditationType) {
@@ -135,6 +156,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               Activitat global
             </NavLink>
+            <div className="nav-export">
+              <div className="nav-export-label">Exportar codis</div>
+              {(['nitoman', 'premsa', 'professional'] as const).map(t => (
+                <button
+                  key={t}
+                  className="nav-export-btn"
+                  disabled={downloadingType === t}
+                  onClick={() => downloadCodes(t)}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  {downloadingType === t ? '…' : TYPE_DEFS[t].label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </nav>
