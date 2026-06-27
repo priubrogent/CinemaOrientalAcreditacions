@@ -115,6 +115,13 @@ try {
   // Column already exists, ignore
 }
 
+// Add outlet column to accreditations if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE accreditations ADD COLUMN outlet TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
+
 // Fix wrong dates in casals_inscriptions (19/07→14/07, 20/07→15/07, 21/07→16/07, 22/07→17/07)
 try {
   db.exec(`

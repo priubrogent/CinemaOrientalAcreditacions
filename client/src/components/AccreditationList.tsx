@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Accreditation, AccreditationType } from '../types';
-import { assignCode, sendEmail, deleteAccreditation, updateAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
+import { assignCode, sendEmail, deleteAccreditation, updateAccreditation, createAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
 
 type ViewMode = 'list' | 'cards';
 type FilterKey = 'all' | 'pending' | 'code_assigned' | 'email_sent';
@@ -94,6 +94,76 @@ function EditModal({
             <button type="button" className="ghost-btn" onClick={onClose}>Cancel·lar</button>
             <button type="submit" className="primary-btn" disabled={mut.isPending}>
               {mut.isPending ? 'Desant…' : 'Desar canvis'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── New accreditation modal ─────────────────────────────────────────────────
+function NewAccreditationModal({
+  type,
+  onClose,
+  onCreated,
+}: {
+  type: AccreditationType;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [outlet, setOutlet] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const mut = useMutation({
+    mutationFn: () => createAccreditation({ customer_name: name, customer_email: email, outlet: outlet || undefined, type }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
+      onCreated();
+      onClose();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!name.trim()) { setError('El nom és obligatori'); return; }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("L'email no és vàlid");
+      return;
+    }
+    mut.mutate();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Nova acreditació</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Nom</label>
+            <input value={name} onChange={e => setName(e.target.value)} required autoFocus />
+          </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label>Mitjà / Empresa</label>
+            <input value={outlet} onChange={e => setOutlet(e.target.value)} />
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <div className="modal-actions">
+            <button type="button" className="ghost-btn" onClick={onClose}>Cancel·lar</button>
+            <button type="submit" className="primary-btn" disabled={mut.isPending}>
+              {mut.isPending ? 'Creant…' : 'Crear acreditació'}
             </button>
           </div>
         </form>
@@ -451,6 +521,7 @@ export default function AccreditationList({ accreditations, isLoading, type, var
   const [selected, setSelected] = useState(new Set<number>());
   const [expanded, setExpanded] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showNewModal, setShowNewModal] = useState(false);
 
   // Reset selection and expanded when type changes
   useEffect(() => {
@@ -632,6 +703,10 @@ export default function AccreditationList({ accreditations, isLoading, type, var
             <button className="ghost-btn" onClick={downloadCSV} disabled={accreditations.length === 0}>
               Exportar CSV
             </button>
+
+            <button className="primary-btn" onClick={() => setShowNewModal(true)}>
+              + Nova acreditació
+            </button>
           </>
         ) : (
           <>
@@ -727,6 +802,14 @@ export default function AccreditationList({ accreditations, isLoading, type, var
       <div className="footer-hint">
         <kbd>↑</kbd><kbd>↓</kbd> navegar · <kbd>Space</kbd> seleccionar · <kbd>E</kbd> enviar · <kbd>⌘K</kbd> cerca
       </div>
+
+      {showNewModal && (
+        <NewAccreditationModal
+          type={type}
+          onClose={() => setShowNewModal(false)}
+          onCreated={() => setShowNewModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -36,6 +36,21 @@ export async function sendEmail(id: number): Promise<Accreditation> {
   return data.accreditation;
 }
 
+export async function createAccreditation(data: { customer_name: string; customer_email: string; outlet?: string; type: string }): Promise<Accreditation> {
+  const res = await fetch(`${API_BASE}/accreditations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Failed to create accreditation');
+  }
+  const result = await res.json();
+  return result.accreditation;
+}
+
 export async function updateAccreditation(id: number, data: { customer_name?: string; customer_email?: string; outlet?: string }): Promise<Accreditation> {
   const res = await fetch(`${API_BASE}/accreditations/${id}`, {
     method: 'PUT',

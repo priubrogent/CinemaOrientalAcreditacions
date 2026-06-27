@@ -30,11 +30,11 @@ export const accreditations = {
     `).get(orderId) as Accreditation | undefined;
   },
 
-  create: (data: { order_id: string; customer_name: string; customer_email: string; type?: string }): Accreditation => {
+  create: (data: { order_id: string; customer_name: string; customer_email: string; type?: string; outlet?: string }): Accreditation => {
     const result = db.prepare(`
-      INSERT INTO accreditations (order_id, customer_name, customer_email, type)
-      VALUES (?, ?, ?, ?)
-    `).run(data.order_id, data.customer_name, data.customer_email, data.type || 'premsa');
+      INSERT INTO accreditations (order_id, customer_name, customer_email, type, outlet)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(data.order_id, data.customer_name, data.customer_email, data.type || 'premsa', data.outlet || null);
 
     return accreditations.getById(result.lastInsertRowid as number)!;
   },

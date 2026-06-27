@@ -11,6 +11,40 @@ function getAccessibleTypes(user: AuthRequest['user']): string[] {
   return user.is_admin ? ['premsa', 'professional', 'nitoman'] : user.types;
 }
 
+// Create accreditation manually
+router.post('/', (req: AuthRequest, res: Response) => {
+  try {
+    const { customer_name, customer_email, outlet, type } = req.body;
+
+    if (!customer_name || !customer_email || !type) {
+      return res.status(400).json({ error: 'Falten camps obligatoris: customer_name, customer_email, type' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+      return res.status(400).json({ error: 'Adreça de correu no vàlida' });
+    }
+
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(type)) {
+      return res.status(403).json({ error: 'No tens accés a aquest tipus' });
+    }
+
+    const order_id = `MANUAL-${Date.now()}`;
+    const accreditation = accreditations.create({
+      order_id,
+      customer_name,
+      customer_email,
+      type,
+      outlet: outlet || undefined,
+    });
+
+    res.status(201).json({ message: 'Accreditation created', accreditation });
+  } catch (error) {
+    console.error('Error creating accreditation:', error);
+    res.status(500).json({ error: 'Failed to create accreditation' });
+  }
+});
+
 // Get all accreditations (filtered by type)
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
