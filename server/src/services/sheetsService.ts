@@ -21,10 +21,7 @@ async function getAuthClient() {
 
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: [
-      'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/drive.file',
-    ],
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
   return auth.getClient();
@@ -200,38 +197,8 @@ function accreditationToRow(a: Accreditation): (string | number)[] {
   ];
 }
 
-async function getOrCreateNitomanSheetId(): Promise<string> {
-  const envId = process.env.NITOMAN_SHEETS_ID;
-  if (envId) return envId;
-
-  const stored = appConfig.get('nitoman_sheet_id');
-  if (stored) return stored;
-
-  const authClient = await getAuthClient();
-  const sheets = google.sheets({ version: 'v4', auth: authClient as any });
-  const drive = google.drive({ version: 'v3', auth: authClient as any });
-
-  const created = await sheets.spreadsheets.create({
-    requestBody: {
-      properties: { title: 'Nitoman Acreditacions — FesNits' },
-      sheets: [
-        { properties: { title: 'Nitoman' } },
-        { properties: { title: 'Super Nitoman' } },
-      ],
-    },
-  });
-
-  const id = created.data.spreadsheetId!;
-
-  // Share with anyone-with-link (writer) so the admin can open it
-  await drive.permissions.create({
-    fileId: id,
-    requestBody: { type: 'anyone', role: 'writer' },
-  });
-
-  appConfig.set('nitoman_sheet_id', id);
-  console.log(`Created Nitoman spreadsheet: https://docs.google.com/spreadsheets/d/${id}`);
-  return id;
+function getNitomanSheetId(): string | null {
+  return process.env.NITOMAN_SHEETS_ID ?? appConfig.get('nitoman_sheet_id');
 }
 
 async function writeTab(
@@ -253,7 +220,12 @@ async function writeTab(
 export async function syncNitomanSheets(nitomanAccreditations: Accreditation[]): Promise<void> {
   if (!getCredentials()) return;
 
-  const spreadsheetId = await getOrCreateNitomanSheetId();
+  const spreadsheetId = getNitomanSheetId();
+  if (!spreadsheetId) {
+    console.warn('Nitoman sheets sync skipped: set NITOMAN_SHEETS_ID env var to enable');
+    return;
+  }
+
   const authClient = await getAuthClient();
   const sheets = google.sheets({ version: 'v4', auth: authClient as any });
 
