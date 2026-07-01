@@ -72,6 +72,11 @@ db.exec(`
     display_name TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS app_config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS casals_inscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nom_casal TEXT NOT NULL,
@@ -120,6 +125,20 @@ try {
   db.exec('ALTER TABLE accreditations ADD COLUMN outlet TEXT');
 } catch (e) {
   // Column already exists, ignore
+}
+
+// Add variant column to accreditations if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE accreditations ADD COLUMN variant TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
+
+// Default existing nitoman entries to 'nitoman' variant
+try {
+  db.exec("UPDATE accreditations SET variant = 'nitoman' WHERE type = 'nitoman' AND variant IS NULL");
+} catch (e) {
+  // ignore
 }
 
 // Fix wrong dates in casals_inscriptions (19/07→14/07, 20/07→15/07, 21/07→16/07, 22/07→17/07)

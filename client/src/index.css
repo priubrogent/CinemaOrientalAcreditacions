@@ -1049,6 +1049,19 @@ input, textarea { font: inherit; color: inherit; }
   margin-top: 8px;
 }
 
+.variant-radio {
+  display: flex;
+  gap: 20px;
+}
+.variant-radio label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
 /* ── Casals edit modal ────────────────────────────────────────────────────── */
 .casal-modal-backdrop {
   position: fixed; inset: 0;

@@ -3,7 +3,9 @@ export interface Accreditation {
   order_id: string;
   customer_name: string;
   customer_email: string;
+  outlet?: string;
   type: 'premsa' | 'professional' | 'nitoman';
+  variant?: 'nitoman' | 'super' | null;
   code_id: number | null;
   code?: string;
   status: 'pending' | 'code_assigned' | 'email_sent';

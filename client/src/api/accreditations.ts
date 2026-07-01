@@ -36,7 +36,22 @@ export async function sendEmail(id: number): Promise<Accreditation> {
   return data.accreditation;
 }
 
-export async function createAccreditation(data: { customer_name: string; customer_email: string; outlet?: string; type: string }): Promise<Accreditation> {
+export async function updateVariant(id: number, variant: 'nitoman' | 'super'): Promise<Accreditation> {
+  const res = await fetch(`${API_BASE}/accreditations/${id}/variant`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ variant }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Failed to update variant');
+  }
+  const data = await res.json();
+  return data.accreditation;
+}
+
+export async function createAccreditation(data: { customer_name: string; customer_email: string; outlet?: string; type: string; variant?: string }): Promise<Accreditation> {
   const res = await fetch(`${API_BASE}/accreditations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -30,11 +30,13 @@ export const accreditations = {
     `).get(orderId) as Accreditation | undefined;
   },
 
-  create: (data: { order_id: string; customer_name: string; customer_email: string; type?: string; outlet?: string }): Accreditation => {
+  create: (data: { order_id: string; customer_name: string; customer_email: string; type?: string; outlet?: string; variant?: string }): Accreditation => {
+    const type = data.type || 'premsa';
+    const variant = data.variant ?? (type === 'nitoman' ? 'nitoman' : null);
     const result = db.prepare(`
-      INSERT INTO accreditations (order_id, customer_name, customer_email, type, outlet)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(data.order_id, data.customer_name, data.customer_email, data.type || 'premsa', data.outlet || null);
+      INSERT INTO accreditations (order_id, customer_name, customer_email, type, outlet, variant)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(data.order_id, data.customer_name, data.customer_email, type, data.outlet || null, variant);
 
     return accreditations.getById(result.lastInsertRowid as number)!;
   },
@@ -60,12 +62,13 @@ export const accreditations = {
     return accreditations.getById(id);
   },
 
-  update: (id: number, data: { customer_name?: string; customer_email?: string; outlet?: string }): Accreditation | undefined => {
+  update: (id: number, data: { customer_name?: string; customer_email?: string; outlet?: string; variant?: string }): Accreditation | undefined => {
     const fields: string[] = [];
     const values: unknown[] = [];
     if (data.customer_name !== undefined) { fields.push('customer_name = ?'); values.push(data.customer_name); }
     if (data.customer_email !== undefined) { fields.push('customer_email = ?'); values.push(data.customer_email); }
     if (data.outlet !== undefined) { fields.push('outlet = ?'); values.push(data.outlet); }
+    if (data.variant !== undefined) { fields.push('variant = ?'); values.push(data.variant); }
     if (fields.length === 0) return accreditations.getById(id);
     values.push(id);
     db.prepare(`UPDATE accreditations SET ${fields.join(', ')} WHERE id = ?`).run(...values);
@@ -287,6 +290,16 @@ export const casalsInscriptions = {
   delete: (id: number): boolean => {
     const result = db.prepare('DELETE FROM casals_inscriptions WHERE id = ?').run(id);
     return result.changes > 0;
+  },
+};
+
+export const appConfig = {
+  get: (key: string): string | null => {
+    const row = db.prepare('SELECT value FROM app_config WHERE key = ?').get(key) as { value: string } | undefined;
+    return row?.value ?? null;
+  },
+  set: (key: string, value: string): void => {
+    db.prepare('INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
   },
 };
 

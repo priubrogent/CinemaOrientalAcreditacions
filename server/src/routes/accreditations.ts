@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { accreditations, codes, templates, users } from '../db/index.js';
 import { sendAccreditationEmail } from '../services/emailService.js';
+import { syncNitomanSheets } from '../services/sheetsService.js';
 import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
@@ -11,10 +12,16 @@ function getAccessibleTypes(user: AuthRequest['user']): string[] {
   return user.is_admin ? ['premsa', 'professional', 'nitoman'] : user.types;
 }
 
+function maybeNitomanSync(type: string) {
+  if (type !== 'nitoman') return;
+  const nitomanRows = accreditations.getAll().filter(a => a.type === 'nitoman');
+  syncNitomanSheets(nitomanRows).catch(err => console.error('Nitoman sheets sync error:', err));
+}
+
 // Create accreditation manually
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    const { customer_name, customer_email, outlet, type } = req.body;
+    const { customer_name, customer_email, outlet, type, variant } = req.body;
 
     if (!customer_name || !customer_email || !type) {
       return res.status(400).json({ error: 'Falten camps obligatoris: customer_name, customer_email, type' });
@@ -36,8 +43,10 @@ router.post('/', (req: AuthRequest, res: Response) => {
       customer_email,
       type,
       outlet: outlet || undefined,
+      variant: variant || undefined,
     });
 
+    maybeNitomanSync(type);
     res.status(201).json({ message: 'Accreditation created', accreditation });
   } catch (error) {
     console.error('Error creating accreditation:', error);
@@ -117,6 +126,7 @@ router.patch('/:id/assign-code', (req: AuthRequest, res: Response) => {
     }
 
     const updated = accreditations.assignCode(id, code.id);
+    maybeNitomanSync(accreditation.type);
     res.json({ message: 'Code assigned', accreditation: updated });
   } catch (error) {
     console.error('Error assigning code:', error);
@@ -162,6 +172,7 @@ router.post('/:id/send-email', async (req: AuthRequest, res: Response) => {
     }
 
     const updated = accreditations.markEmailSent(id);
+    maybeNitomanSync(accreditation.type);
     res.json({ message: 'Email sent successfully', accreditation: updated });
   } catch (error) {
     console.error('Error sending email:', error);
@@ -184,13 +195,14 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'No access to this accreditation' });
     }
 
-    const { customer_name, customer_email, outlet } = req.body;
+    const { customer_name, customer_email, outlet, variant } = req.body;
 
     if (customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-    const updated = accreditations.update(id, { customer_name, customer_email, outlet });
+    const updated = accreditations.update(id, { customer_name, customer_email, outlet, variant });
+    maybeNitomanSync(accreditation.type);
     res.json({ message: 'Accreditation updated', accreditation: updated });
   } catch (error) {
     console.error('Error updating accreditation:', error);
@@ -214,14 +226,44 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'No access to this accreditation' });
     }
 
+    const accType = accreditation.type;
     const deleted = accreditations.delete(id);
     if (!deleted) {
       return res.status(404).json({ error: 'Accreditation not found' });
     }
+    maybeNitomanSync(accType);
     res.json({ message: 'Accreditation deleted' });
   } catch (error) {
     console.error('Error deleting accreditation:', error);
     res.status(500).json({ error: 'Failed to delete accreditation' });
+  }
+});
+
+// Update variant for a nitoman accreditation
+router.patch('/:id/variant', (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { variant } = req.body;
+
+    if (!variant || !['nitoman', 'super'].includes(variant)) {
+      return res.status(400).json({ error: "Variant must be 'nitoman' or 'super'" });
+    }
+
+    const accreditation = accreditations.getById(id);
+    if (!accreditation) return res.status(404).json({ error: 'Accreditation not found' });
+    if (accreditation.type !== 'nitoman') return res.status(400).json({ error: 'Variant only applies to nitoman accreditations' });
+
+    const accessibleTypes = getAccessibleTypes(req.user);
+    if (!accessibleTypes.includes(accreditation.type)) {
+      return res.status(403).json({ error: 'No access to this accreditation' });
+    }
+
+    const updated = accreditations.update(id, { variant });
+    maybeNitomanSync('nitoman');
+    res.json({ message: 'Variant updated', accreditation: updated });
+  } catch (error) {
+    console.error('Error updating variant:', error);
+    res.status(500).json({ error: 'Failed to update variant' });
   }
 });
 

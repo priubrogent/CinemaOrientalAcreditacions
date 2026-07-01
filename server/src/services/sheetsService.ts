@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import type { Accreditation } from '../types/index.js';
+import { appConfig } from '../db/index.js';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const SHEET_NAME = 'Acreditacions';
@@ -20,7 +21,10 @@ async function getAuthClient() {
 
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file',
+    ],
   });
 
   return auth.getClient();
@@ -175,6 +179,91 @@ export async function updateRowInGoogleSheets(accreditation: Accreditation): Pro
 
 export async function isConfigured(): Promise<boolean> {
   return !!SPREADSHEET_ID && !!getCredentials();
+}
+
+// ─── Nitoman spreadsheet ─────────────────────────────────────────────────────
+
+const NITOMAN_HEADERS = ['ID', 'Comanda', 'Nom', 'Email', 'Empresa/Mitjà', 'Variant', 'Codi', 'Estat', 'Data creació', 'Email enviat'];
+
+function accreditationToRow(a: Accreditation): (string | number)[] {
+  return [
+    a.id,
+    a.order_id,
+    a.customer_name,
+    a.customer_email,
+    a.outlet ?? '',
+    a.variant ?? '',
+    a.code ?? '',
+    a.status,
+    a.created_at,
+    a.email_sent_at ?? '',
+  ];
+}
+
+async function getOrCreateNitomanSheetId(): Promise<string> {
+  const envId = process.env.NITOMAN_SHEETS_ID;
+  if (envId) return envId;
+
+  const stored = appConfig.get('nitoman_sheet_id');
+  if (stored) return stored;
+
+  const authClient = await getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth: authClient as any });
+  const drive = google.drive({ version: 'v3', auth: authClient as any });
+
+  const created = await sheets.spreadsheets.create({
+    requestBody: {
+      properties: { title: 'Nitoman Acreditacions — FesNits' },
+      sheets: [
+        { properties: { title: 'Nitoman' } },
+        { properties: { title: 'Super Nitoman' } },
+      ],
+    },
+  });
+
+  const id = created.data.spreadsheetId!;
+
+  // Share with anyone-with-link (writer) so the admin can open it
+  await drive.permissions.create({
+    fileId: id,
+    requestBody: { type: 'anyone', role: 'writer' },
+  });
+
+  appConfig.set('nitoman_sheet_id', id);
+  console.log(`Created Nitoman spreadsheet: https://docs.google.com/spreadsheets/d/${id}`);
+  return id;
+}
+
+async function writeTab(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+  tabName: string,
+  rows: Accreditation[],
+) {
+  const values = [NITOMAN_HEADERS, ...rows.map(accreditationToRow)];
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A:J` });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${tabName}!A1`,
+    valueInputOption: 'RAW',
+    requestBody: { values },
+  });
+}
+
+export async function syncNitomanSheets(nitomanAccreditations: Accreditation[]): Promise<void> {
+  if (!getCredentials()) return;
+
+  const spreadsheetId = await getOrCreateNitomanSheetId();
+  const authClient = await getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth: authClient as any });
+
+  const standard = nitomanAccreditations.filter(a => a.variant !== 'super');
+  const superRows = nitomanAccreditations.filter(a => a.variant === 'super');
+
+  await writeTab(sheets, spreadsheetId, 'Nitoman', standard);
+  await writeTab(sheets, spreadsheetId, 'Super Nitoman', superRows);
+
+  console.log(`Nitoman sheets synced: ${standard.length} nitoman, ${superRows.length} super`);
 }
 
 const CASALS_SHEET_NAME = 'Casals';

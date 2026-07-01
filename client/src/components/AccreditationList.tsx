@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Accreditation, AccreditationType } from '../types';
-import { assignCode, sendEmail, deleteAccreditation, updateAccreditation, createAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
+import { assignCode, sendEmail, deleteAccreditation, updateAccreditation, updateVariant, createAccreditation, fetchTemplates, previewTemplate } from '../api/accreditations';
 
 type ViewMode = 'list' | 'cards';
 type FilterKey = 'all' | 'pending' | 'code_assigned' | 'email_sent';
@@ -46,11 +46,18 @@ function EditModal({
   const [name, setName] = useState(row.customer_name);
   const [email, setEmail] = useState(row.customer_email);
   const [outlet, setOutlet] = useState(row.outlet ?? '');
+  const [variant, setVariant] = useState<'nitoman' | 'super'>(row.variant === 'super' ? 'super' : 'nitoman');
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const mut = useMutation({
-    mutationFn: () => updateAccreditation(row.id, { customer_name: name, customer_email: email, outlet: outlet || undefined }),
+    mutationFn: async () => {
+      const updated = await updateAccreditation(row.id, { customer_name: name, customer_email: email, outlet: outlet || undefined });
+      if (type === 'nitoman' && variant !== row.variant) {
+        return updateVariant(row.id, variant);
+      }
+      return updated;
+    },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
       onSaved(updated);
@@ -89,6 +96,21 @@ function EditModal({
             <label>Mitjà / Empresa</label>
             <input value={outlet} onChange={e => setOutlet(e.target.value)} />
           </div>
+          {type === 'nitoman' && (
+            <div className="form-group">
+              <label>Variant</label>
+              <div className="variant-radio">
+                <label>
+                  <input type="radio" name="variant" value="nitoman" checked={variant === 'nitoman'} onChange={() => setVariant('nitoman')} />
+                  Nitòman
+                </label>
+                <label>
+                  <input type="radio" name="variant" value="super" checked={variant === 'super'} onChange={() => setVariant('super')} />
+                  Super Nitòman
+                </label>
+              </div>
+            </div>
+          )}
           {error && <p className="form-error">{error}</p>}
           <div className="modal-actions">
             <button type="button" className="ghost-btn" onClick={onClose}>Cancel·lar</button>
@@ -115,11 +137,18 @@ function NewAccreditationModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [outlet, setOutlet] = useState('');
+  const [variant, setVariant] = useState<'nitoman' | 'super'>('nitoman');
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const mut = useMutation({
-    mutationFn: () => createAccreditation({ customer_name: name, customer_email: email, outlet: outlet || undefined, type }),
+    mutationFn: () => createAccreditation({
+      customer_name: name,
+      customer_email: email,
+      outlet: outlet || undefined,
+      type,
+      variant: type === 'nitoman' ? variant : undefined,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accreditations', type] });
       onCreated();
@@ -159,6 +188,21 @@ function NewAccreditationModal({
             <label>Mitjà / Empresa</label>
             <input value={outlet} onChange={e => setOutlet(e.target.value)} />
           </div>
+          {type === 'nitoman' && (
+            <div className="form-group">
+              <label>Variant</label>
+              <div className="variant-radio">
+                <label>
+                  <input type="radio" name="variant" value="nitoman" checked={variant === 'nitoman'} onChange={() => setVariant('nitoman')} />
+                  Nitòman
+                </label>
+                <label>
+                  <input type="radio" name="variant" value="super" checked={variant === 'super'} onChange={() => setVariant('super')} />
+                  Super Nitòman
+                </label>
+              </div>
+            </div>
+          )}
           {error && <p className="form-error">{error}</p>}
           <div className="modal-actions">
             <button type="button" className="ghost-btn" onClick={onClose}>Cancel·lar</button>

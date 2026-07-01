@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import db from '../db/index.js';
 import { accreditations, codes, templates } from '../db/index.js';
 import { sendAccreditationEmail } from '../services/emailService.js';
-import { appendToGoogleSheets, updateRowInGoogleSheets } from '../services/sheetsService.js';
+import { appendToGoogleSheets, updateRowInGoogleSheets, syncNitomanSheets } from '../services/sheetsService.js';
 import type { WooCommerceWebhookPayload } from '../types/index.js';
 
 interface TypeSettings {
@@ -24,6 +24,10 @@ function getTypeSettings(type: string): TypeSettings {
 function detectAccreditationType(lineItems: Array<{ name: string; sku?: string }>): string | null {
   if (!lineItems || lineItems.length === 0) return null;
 
+  // Match 'nitoman'/'nitòman' only as a whole word — prevents 'Nitòmana' (beer) from matching.
+  // The negative lookahead ensures the match isn't followed by another letter (accented or not).
+  const nitomanRe = /nitò?man(?![a-zA-ZÀ-ÿ])/i;
+
   for (const item of lineItems) {
     const searchText = `${item.name || ''} ${item.sku || ''}`.toLowerCase();
 
@@ -33,7 +37,7 @@ function detectAccreditationType(lineItems: Array<{ name: string; sku?: string }
     if (searchText.includes('professional')) {
       return 'professional';
     }
-    if (searchText.includes('nitoman') || searchText.includes('nitòman')) {
+    if (nitomanRe.test(searchText)) {
       return 'nitoman';
     }
   }
@@ -136,6 +140,12 @@ router.post('/woocommerce', (req, res) => {
     appendToGoogleSheets(accreditation).catch(err => {
       console.error('Google Sheets append error:', err);
     });
+
+    // Sync Nitoman spreadsheet
+    if (detectedType === 'nitoman') {
+      const nitomanRows = accreditations.getAll().filter((a: any) => a.type === 'nitoman');
+      syncNitomanSheets(nitomanRows).catch(err => console.error('Nitoman sheets sync error:', err));
+    }
 
     // Auto-process (assign code and/or send email) based on settings
     autoProcessAccreditation(accreditation.id, accreditation.type).catch(err => {
