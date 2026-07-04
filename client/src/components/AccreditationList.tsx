@@ -137,6 +137,7 @@ function NewAccreditationModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [outlet, setOutlet] = useState('');
+  const [orderId, setOrderId] = useState('');
   const [variant, setVariant] = useState<'nitoman' | 'super'>('nitoman');
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -146,6 +147,7 @@ function NewAccreditationModal({
       customer_name: name,
       customer_email: email,
       outlet: outlet || undefined,
+      order_id: orderId.trim() || undefined,
       type,
       variant: type === 'nitoman' ? variant : undefined,
     }),
@@ -187,6 +189,10 @@ function NewAccreditationModal({
           <div className="form-group">
             <label>Mitjà / Empresa</label>
             <input value={outlet} onChange={e => setOutlet(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Número de comanda (opcional)</label>
+            <input value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="Es genera automàticament si es deixa buit" />
           </div>
           {type === 'nitoman' && (
             <div className="form-group">

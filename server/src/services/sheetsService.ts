@@ -201,19 +201,35 @@ function getNitomanSheetId(): string | null {
   return process.env.NITOMAN_SHEETS_ID ?? appConfig.get('nitoman_sheet_id');
 }
 
-async function writeTab(
+// Appends only rows whose ID isn't already present in the tab, so manual
+// edits made directly in the sheet on previously-synced rows are preserved.
+async function appendNewRows(
   sheets: ReturnType<typeof google.sheets>,
   spreadsheetId: string,
   tabName: string,
   rows: Accreditation[],
 ) {
-  const values = [NITOMAN_HEADERS, ...rows.map(accreditationToRow)];
-  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A:J` });
-  await sheets.spreadsheets.values.update({
+  const existing = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${tabName}!A:A` });
+  const existingRows = existing.data.values || [];
+
+  if (existingRows.length === 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tabName}!A1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [NITOMAN_HEADERS] },
+    });
+  }
+
+  const existingIds = new Set(existingRows.slice(1).map(r => String(r[0])));
+  const newRows = rows.filter(a => !existingIds.has(String(a.id)));
+  if (newRows.length === 0) return;
+
+  await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `${tabName}!A1`,
+    range: `${tabName}!A:J`,
     valueInputOption: 'RAW',
-    requestBody: { values },
+    requestBody: { values: newRows.map(accreditationToRow) },
   });
 }
 
@@ -232,10 +248,10 @@ export async function syncNitomanSheets(nitomanAccreditations: Accreditation[]):
   const standard = nitomanAccreditations.filter(a => a.variant !== 'super');
   const superRows = nitomanAccreditations.filter(a => a.variant === 'super');
 
-  await writeTab(sheets, spreadsheetId, 'Nitoman', standard);
-  await writeTab(sheets, spreadsheetId, 'Super Nitoman', superRows);
+  await appendNewRows(sheets, spreadsheetId, 'Nitoman', standard);
+  await appendNewRows(sheets, spreadsheetId, 'Super Nitoman', superRows);
 
-  console.log(`Nitoman sheets synced: ${standard.length} nitoman, ${superRows.length} super`);
+  console.log(`Nitoman sheets synced (append-only)`);
 }
 
 const CASALS_SHEET_NAME = 'Casals';

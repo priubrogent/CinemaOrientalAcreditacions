@@ -51,7 +51,7 @@ export async function updateVariant(id: number, variant: 'nitoman' | 'super'): P
   return data.accreditation;
 }
 
-export async function createAccreditation(data: { customer_name: string; customer_email: string; outlet?: string; type: string; variant?: string }): Promise<Accreditation> {
+export async function createAccreditation(data: { customer_name: string; customer_email: string; outlet?: string; type: string; variant?: string; order_id?: string }): Promise<Accreditation> {
   const res = await fetch(`${API_BASE}/accreditations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

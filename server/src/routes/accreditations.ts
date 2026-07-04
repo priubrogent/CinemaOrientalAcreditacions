@@ -21,7 +21,7 @@ function maybeNitomanSync(type: string) {
 // Create accreditation manually
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    const { customer_name, customer_email, outlet, type, variant } = req.body;
+    const { customer_name, customer_email, outlet, type, variant, order_id: requestedOrderId } = req.body;
 
     if (!customer_name || !customer_email || !type) {
       return res.status(400).json({ error: 'Falten camps obligatoris: customer_name, customer_email, type' });
@@ -36,7 +36,13 @@ router.post('/', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'No tens accés a aquest tipus' });
     }
 
-    const order_id = `MANUAL-${Date.now()}`;
+    let order_id = `MANUAL-${Date.now()}`;
+    if (requestedOrderId && String(requestedOrderId).trim()) {
+      order_id = String(requestedOrderId).trim();
+      if (accreditations.getByOrderId(order_id)) {
+        return res.status(409).json({ error: 'Ja existeix una acreditació amb aquest número de comanda' });
+      }
+    }
     const accreditation = accreditations.create({
       order_id,
       customer_name,
